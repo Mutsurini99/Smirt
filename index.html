@@ -539,6 +539,48 @@
         let techSignatureData = null, clientSignatureData = null;
         let clientSignatureConfirmed = false; // Traccia se la firma cliente è stata confermata
 
+        // === MAPPATURA UTENTI PER BUONI LAVORO ===
+        const USER_CODE_MAPPING = {
+            'admin': 'A',
+            'tecnico1': 'T',
+            'tecnico2': 'U',
+            'valentino': 'V'
+        };
+
+        // === SISTEMA UPLOAD FIRMA INTELLIGENTE V2 ===
+        
+        async function uploadLargeSignature(data) {
+            console.log('🚀 === SISTEMA UPLOAD FIRMA INTELLIGENTE V2 ===');
+            const signature = data.firmaTecicoTechnicianSignature || data.signatureBase64;
+            
+            if (!signature) {
+                throw new Error('Firma non presente nei dati');
+            }
+            
+            const signatureSize = signature.length;
+            const sizeKB = (signatureSize / 1024).toFixed(1);
+            console.log(`📏 Dimensione firma: ${sizeKB}KB (${signatureSize} caratteri)`);
+            
+            // Rilevamento ambiente avanzato
+            const environment = detectUploadEnvironment();
+            console.log('🎯 Ambiente rilevato:', environment);
+            
+            // Soglie dinamiche intelligenti
+            const config = getOptimalUploadConfig(environment, signatureSize);
+            console.log('📊 Configurazione upload:', config);
+            
+            // Compressione firma se necessaria
+            const processedSignature = await compressSignatureIfNeeded(signature, config.maxSize);
+            
+            if (processedSignature.length > config.chunkThreshold) {
+                console.log('📦 Utilizzando upload chunked avanzato');
+                return await uploadSignatureChunkedV2(data, processedSignature, config);
+            } else {
+                console.log('📝 Utilizzando upload ottimizzato rapido');
+                return await uploadSignatureOptimizedV2(data, processedSignature, config);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🚨 DOMCONTENTLOADED ATTIVATO! Inizio inizializzazione...');
             
@@ -627,15 +669,37 @@
             // === UPLOAD FIRMA INTELLIGENTE CON AUTO-CHUNKING ===
             async function uploadClientSignatureToServer(data) {
                 console.log('🚀 === UPLOAD FIRMA INTELLIGENTE ===');
-                console.log('📊 Dati firma ricevuti:', { 
-                    ...data, 
-                    signatureBase64: data.signatureBase64 ? `[${(data.signatureBase64.length/1024).toFixed(1)}KB]` : '[MANCANTE]',
-                    firmaTecicoTechnicianSignature: data.firmaTecicoTechnicianSignature ? `[${(data.firmaTecicoTechnicianSignature.length/1024).toFixed(1)}KB]` : '[MANCANTE]'
+                
+                // Validazione dati in ingresso
+                if (!data) {
+                    throw new Error('Dati upload non forniti');
+                }
+                
+                // Verifica presenza firma con nomi parametri multipli
+                const signature = data.firmaTecicoTechnicianSignature || data.signatureBase64 || data.signature;
+                if (!signature) {
+                    console.error('❌ Nessuna firma trovata nei dati:', Object.keys(data));
+                    throw new Error('Firma non presente nei dati di upload');
+                }
+                
+                console.log('📊 Dati firma ricevuti:', {
+                    ...data,
+                    signatureSize: signature ? `${(signature.length/1024).toFixed(1)}KB` : 'MANCANTE',
+                    parametriRicevuti: Object.keys(data),
+                    identificativo: data.identificativo,
+                    tipoIntervento: data.tipoIntervento
                 });
                 
                 try {
+                    // Normalizza i dati per il sistema intelligente
+                    const normalizedData = {
+                        ...data,
+                        firmaTecicoTechnicianSignature: signature, // Assicura nome parametro corretto
+                        signatureBase64: signature // Fallback per compatibilità
+                    };
+                    
                     // Usa il nuovo sistema intelligente
-                    const result = await uploadLargeSignature(data);
+                    const result = await uploadLargeSignature(normalizedData);
                     console.log('✅ Upload firma completato con successo:', result);
                     
                     // Formatta risposta compatibile
@@ -650,33 +714,55 @@
                 } catch (error) {
                     console.error('❌ Errore upload firma intelligente:', error);
                     
-                    // Fallback al metodo legacy in caso di errore
+                    // Fallback al metodo legacy robusto
                     console.log('🔄 Tentativo fallback al metodo legacy...');
-                    return await uploadSignatureLegacy(data);
+                    return await uploadSignatureLegacyRobust(data, signature);
                 }
             }
-            
-            // Fallback legacy per compatibilità
-            async function uploadSignatureLegacy(data) {
-                console.log('🔄 === FALLBACK UPLOAD LEGACY ===');
+
+            // Fallback legacy robusto per compatibilità
+            async function uploadSignatureLegacyRobust(data, signature) {
+                console.log('🔄 === FALLBACK UPLOAD LEGACY ROBUSTO ===');
+                console.log('📊 Dati per legacy upload:', { 
+                    identificativo: data.identificativo,
+                    tipoIntervento: data.tipoIntervento,
+                    utente: data.utente,
+                    luogo: data.luogo,
+                    dataInizio: data.dataInizio,
+                    signatureSize: signature ? `${(signature.length/1024).toFixed(1)}KB` : 'MANCANTE'
+                });
                 
                 return new Promise((resolve, reject) => {
                     try {
                         const callbackName = 'legacy_upload_' + Math.random().toString(36).substr(2, 9);
                         
+                        // Crea oggetto dati con firma inclusa
+                        const uploadData = {
+                            identificativo: data.identificativo || 'LEGACY_' + Date.now(),
+                            tipoIntervento: data.tipoIntervento || 'mud',
+                            mudValue: data.mudValue || 'true',
+                            luogo: data.luogo || 'Luogo non specificato',
+                            dataInizio: data.dataInizio || new Date().toISOString().split('T')[0],
+                            utente: data.utente || 'admin',
+                            signatureBase64: signature
+                        };
+                        
+                        console.log('📤 Dati normalizzati per legacy:', uploadData);
+                        
                         const params = new URLSearchParams({
                             callback: callbackName,
                             action: 'upload-client-signature',
-                            data: encodeURIComponent(JSON.stringify(data))
+                            data: encodeURIComponent(JSON.stringify(uploadData))
                         });
                         
                         const fullUrl = `${SCRIPT_URL}?${params.toString()}`;
+                        console.log('🔗 URL legacy lunghezza:', fullUrl.length);
                         
                         // Timeout esteso per legacy
                         const timeout = setTimeout(() => {
                             cleanup();
-                            reject(new Error('Timeout upload firma legacy (120s)'));
-                        }, 120000);
+                            reject(new Error('Timeout upload firma legacy (180s)'));
+                        }, 180000); // 3 minuti per legacy
                         
                         const cleanup = () => {
                             if (window[callbackName]) delete window[callbackName];
@@ -688,272 +774,35 @@
                             console.log('✅ Legacy Upload Response:', response);
                             cleanup();
                             
-                            if (response.status === 'success') {
-                                resolve(response);
+                            if (response && (response.status === 'success' || response.success)) {
+                                resolve({
+                                    status: 'success',
+                                    message: response.message || 'Firma caricata con metodo legacy',
+                                    method: 'legacy',
+                                    driveUrl: response.driveUrl
+                                });
                             } else {
-                                reject(new Error(response.message || 'Errore upload legacy'));
+                                reject(new Error(response.message || response.error || 'Errore upload legacy sconosciuto'));
                             }
                         };
                         
                         const script = document.createElement('script');
                         script.src = fullUrl;
                         script.onerror = () => {
+                            console.error('❌ Errore rete upload legacy');
                             cleanup();
                             reject(new Error('Errore rete upload legacy'));
                         };
                         
+                        console.log('⏳ Avvio upload legacy...');
                         document.head.appendChild(script);
                         
                     } catch (error) {
+                        console.error('❌ Errore setup upload legacy:', error);
                         reject(new Error('Errore setup upload legacy: ' + error.message));
                     }
                 });
             }
-
-            // === MAPPATURA UTENTI PER BUONI LAVORO ===
-            const USER_CODE_MAPPING = {
-                'admin': 'A',
-                'tecnico1': 'T',
-                'tecnico2': 'U',
-                'valentino': 'V'
-            };
-
-            // === SISTEMA UPLOAD FIRMA INTELLIGENTE ===
-            
-            async function uploadLargeSignature(data) {
-                console.log('🚀 === SISTEMA UPLOAD FIRMA INTELLIGENTE ===');
-                const signature = data.firmaTecicoTechnicianSignature || data.signatureBase64;
-                
-                if (!signature) {
-                    throw new Error('Firma non presente nei dati');
-                }
-                
-                const signatureSize = signature.length;
-                const sizeKB = (signatureSize / 1024).toFixed(1);
-                console.log(`📏 Dimensione firma: ${sizeKB}KB (${signatureSize} caratteri)`);
-                
-                // Soglie intelligenti basate su ambiente
-                const isGitHubPages = window.location.hostname.includes('github.io');
-                const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                
-                // Soglie dinamiche
-                const chunkThreshold = isGitHubPages ? 30000 : (isMobile ? 40000 : 60000); // 30KB GitHub, 40KB mobile, 60KB desktop
-                const maxTimeout = isGitHubPages ? 300000 : (isMobile ? 240000 : 180000); // 5min GitHub, 4min mobile, 3min desktop
-                
-                console.log(`🎯 Ambiente rilevato: GitHub=${isGitHubPages}, Mobile=${isMobile}`);
-                console.log(`📊 Soglia chunking: ${(chunkThreshold/1024).toFixed(1)}KB, Timeout: ${maxTimeout/1000}s`);
-                
-                if (signatureSize > chunkThreshold) {
-                    console.log('📦 Utilizzando upload chunked per firma grande');
-                    return await uploadSignatureChunked(data, signature, maxTimeout);
-                } else {
-                    console.log('📝 Utilizzando upload ottimizzato standard');
-                    return await uploadSignatureOptimized(data, signature, maxTimeout);
-                }
-            }
-            
-            // Upload chunked per firme grandi
-            async function uploadSignatureChunked(data, signature, timeout) {
-                try {
-                    console.log('📦 === UPLOAD CHUNKED ===');
-                    
-                    // Dimensione chunk dinamica
-                    const baseChunkSize = 25000; // 25KB base
-                    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                    const chunkSize = isMobile ? baseChunkSize * 0.8 : baseChunkSize; // 20KB mobile, 25KB desktop
-                    
-                    // Dividi in chunks
-                    const chunks = [];
-                    for (let i = 0; i < signature.length; i += chunkSize) {
-                        chunks.push(signature.slice(i, i + chunkSize));
-                    }
-                    
-                    console.log(`📦 Firma divisa in ${chunks.length} chunks da ~${(chunkSize/1024).toFixed(1)}KB`);
-                    
-                    // Upload sequenziale con retry automatico
-                    for (let i = 0; i < chunks.length; i++) {
-                        const chunkData = {
-                            ...data,
-                            firmaTecicoTechnicianSignature: chunks[i],
-                            chunkIndex: i,
-                            totalChunks: chunks.length,
-                            isChunkedUpload: 'true'
-                        };
-                        
-                        console.log(`📤 Caricando chunk ${i + 1}/${chunks.length} (${(chunks[i].length/1024).toFixed(1)}KB)`);
-                        
-                        // Retry automatico per chunk
-                        let retries = 3;
-                        let success = false;
-                        
-                        while (retries > 0 && !success) {
-                            try {
-                                await uploadChunkWithJsonp(chunkData, timeout);
-                                success = true;
-                                console.log(`✅ Chunk ${i + 1}/${chunks.length} caricato`);
-                                
-                                // Pausa tra chunks per stabilità
-                                if (i < chunks.length - 1) {
-                                    const delay = isMobile ? 2000 : 1000; // 2s mobile, 1s desktop
-                                    await new Promise(resolve => setTimeout(resolve, delay));
-                                }
-                            } catch (error) {
-                                retries--;
-                                console.warn(`⚠️ Retry chunk ${i + 1}, tentativi rimasti: ${retries}`, error.message);
-                                if (retries > 0) {
-                                    await new Promise(resolve => setTimeout(resolve, 2000)); // Pausa prima del retry
-                                }
-                            }
-                        }
-                        
-                        if (!success) {
-                            throw new Error(`Fallimento chunk ${i + 1}/${chunks.length} dopo 3 tentativi`);
-                        }
-                    }
-                    
-                    console.log('🎉 Tutti i chunks caricati con successo!');
-                    return { 
-                        success: true, 
-                        message: `Firma caricata in ${chunks.length} chunks`,
-                        method: 'chunked',
-                        totalSize: `${(signature.length/1024).toFixed(1)}KB`
-                    };
-                    
-                } catch (error) {
-                    console.error('❌ Errore upload chunked:', error);
-                    throw error;
-                }
-            }
-            
-            // Upload ottimizzato per firme normali
-            async function uploadSignatureOptimized(data, signature, timeout) {
-                try {
-                    console.log('📝 === UPLOAD OTTIMIZZATO ===');
-                    
-                    // Usa endpoint ottimizzato
-                    const response = await uploadChunkWithJsonp(data, timeout);
-                    
-                    console.log('✅ Upload ottimizzato completato');
-                    return { 
-                        ...response, 
-                        method: 'optimized',
-                        totalSize: `${(signature.length/1024).toFixed(1)}KB`
-                    };
-                    
-                } catch (error) {
-                    console.error('❌ Errore upload ottimizzato:', error);
-                    throw error;
-                }
-            }
-            
-            // Helper JSONP con timeout intelligente
-            function uploadChunkWithJsonp(data, timeout) {
-                return new Promise((resolve, reject) => {
-                    const callbackName = 'upload_' + Math.random().toString(36).substr(2, 9);
-                    const cacheParam = Date.now() + Math.random().toString(36).substr(2, 5);
-                    
-                    // Timeout con cleanup automatico
-                    const timeoutId = setTimeout(() => {
-                        cleanup();
-                        reject(new Error(`Timeout dopo ${timeout/1000} secondi`));
-                    }, timeout);
-                    
-                    // Cleanup function
-                    const cleanup = () => {
-                        if (window[callbackName]) delete window[callbackName];
-                        if (script && script.parentNode) script.parentNode.removeChild(script);
-                        clearTimeout(timeoutId);
-                    };
-                    
-                    // Callback globale
-                    window[callbackName] = function(response) {
-                        cleanup();
-                        
-                        if (response && response.success) {
-                            resolve(response);
-                        } else {
-                            reject(new Error(response ? response.error : 'Upload fallito'));
-                        }
-                    };
-                    
-                    // Crea script JSONP
-                    const script = document.createElement('script');
-                    
-                    // Costruisci URL con parametri ottimizzati
-                    const params = Object.keys(data).map(key => 
-                        encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
-                    ).join('&');
-                    
-                    script.src = `${SCRIPT_URL}?callback=${callbackName}&action=uploadClientSignature&cache=${cacheParam}&${params}`;
-                    
-                    script.onerror = () => {
-                        cleanup();
-                        reject(new Error('Errore di rete durante upload'));
-                    };
-                    
-                    document.head.appendChild(script);
-                });
-            }
-
-            // === FUNZIONE TEST JSONP ===
-            window.testServerConnection = async function() {
-                console.log('🧪 === TEST CONNESSIONE SERVER JSONP ===');
-                
-                // Test JSONP semplice
-                console.log('📋 Test JSONP semplice');
-                return new Promise((resolve) => {
-                    const callbackName = 'test_callback_' + Date.now();
-                    const testUrl = `${SCRIPT_URL}?callback=${callbackName}&action=test&simple=true`;
-                    
-                    console.log('🔗 Test JSONP URL:', testUrl);
-                    
-                    // Timeout
-                    const timeout = setTimeout(() => {
-                        cleanup();
-                        console.log('⏰ Timeout test JSONP');
-                        resolve(false);
-                    }, 10000);
-                    
-                    // Cleanup function
-                    const cleanup = () => {
-                        if (window[callbackName]) delete window[callbackName];
-                        if (script && script.parentNode) script.parentNode.removeChild(script);
-                        clearTimeout(timeout);
-                    };
-                    
-                    // Callback globale
-                    window[callbackName] = (response) => {
-                        console.log('✅ Test JSONP Response:', response);
-                        cleanup();
-                        resolve(true);
-                    };
-                    
-                    // Crea script con debug migliorato
-                    const script = document.createElement('script');
-                    script.src = testUrl;
-                    script.onerror = (error) => {
-                        console.error('❌ Errore caricamento script JSONP:', error);
-                        console.error('❌ URL che ha fallito:', testUrl);
-                        console.error('❌ Possibile causa: script non aggiornato o URL errato');
-                        cleanup();
-                        resolve(false);
-                    };
-                    
-                    // Timeout per script caricamento
-                    script.onload = () => {
-                        console.log('✅ Script JSONP caricato, in attesa callback...');
-                    };
-                    
-                    document.head.appendChild(script);
-                });
-            };
-            
-            // Test diretto aprendo URL nel browser
-            window.testServerConnectionDirect = function() {
-                const testUrl = SCRIPT_URL + '?action=ping&simple=true';
-                console.log('🔗 Apri questo URL nel browser:', testUrl);
-                window.open(testUrl, '_blank');
-            };
 
             // === ELEMENTI DOM ===
             const appScreen = document.getElementById('app-screen');
@@ -1825,7 +1674,6 @@
         });
         
         // Click sul pulsante installa
-        const installAppButton = document.getElementById('install-app-button');
         if (installAppButton) {
             installAppButton.addEventListener('click', async () => {
                 try {
@@ -1856,9 +1704,6 @@
             try {
                 console.log('📱 PWA: App installata con successo');
                 deferredPrompt = null;
-                
-                const installAppButton = document.getElementById('install-app-button');
-                const mobileInstallInstructions = document.getElementById('mobile-install-instructions');
                 
                 if (installAppButton) installAppButton.classList.add('hidden');
                 if (mobileInstallInstructions) mobileInstallInstructions.classList.add('hidden');
@@ -2335,6 +2180,77 @@
         // ===============================================
         // FINE GESTIONE FIRME
         // ===============================================
+
+        // ===============================================
+        // SISTEMA DI MONITORAGGIO UPLOAD AVANZATO
+        // ===============================================
+        
+        window.uploadMonitor = {
+            sessions: new Map(),
+            
+            startSession: function(sessionId, totalChunks) {
+                this.sessions.set(sessionId, {
+                    id: sessionId,
+                    totalChunks: totalChunks,
+                    uploadedChunks: 0,
+                    failedChunks: 0,
+                    startTime: Date.now(),
+                    lastUpdate: Date.now(),
+                    status: 'uploading',
+                    errors: []
+                });
+                console.log('📊 Sessione upload avviata:', sessionId);
+            },
+            
+            updateChunk: function(sessionId, chunkIndex, status, error = null) {
+                const session = this.sessions.get(sessionId);
+                if (!session) return;
+                
+                if (status === 'success') {
+                    session.uploadedChunks++;
+                } else if (status === 'failed') {
+                    session.failedChunks++;
+                    if (error) session.errors.push({ chunkIndex, error: error.message, timestamp: Date.now() });
+                }
+                
+                session.lastUpdate = Date.now();
+                
+                const progress = (session.uploadedChunks / session.totalChunks) * 100;
+                console.log(`📊 Sessione ${sessionId}: ${progress.toFixed(1)}% (${session.uploadedChunks}/${session.totalChunks})`);
+                
+                // Auto-cleanup sessioni completate
+                if (session.uploadedChunks + session.failedChunks >= session.totalChunks) {
+                    session.status = session.failedChunks === 0 ? 'completed' : 'failed';
+                    session.duration = Date.now() - session.startTime;
+                    console.log('🏁 Sessione', sessionId, 'completata:', session.status);
+                }
+            },
+            
+            getSessionStats: function(sessionId) {
+                return this.sessions.get(sessionId);
+            },
+            
+            getAllStats: function() {
+                return Array.from(this.sessions.values());
+            },
+            
+            cleanup: function() {
+                const now = Date.now();
+                const maxAge = 30 * 60 * 1000; // 30 minuti
+                
+                for (const [sessionId, session] of this.sessions.entries()) {
+                    if (now - session.lastUpdate > maxAge) {
+                        this.sessions.delete(sessionId);
+                        console.log('🧹 Sessione scaduta rimossa:', sessionId);
+                    }
+                }
+            }
+        };
+        
+        // Cleanup automatico ogni 5 minuti
+        setInterval(() => {
+            uploadMonitor.cleanup();
+        }, 5 * 60 * 1000);
 
         // ===============================================
         // FUNZIONI DI DEBUG E TEST
