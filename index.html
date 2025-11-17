@@ -588,221 +588,60 @@
             const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx1pvO0am4ZEnyrQzOfkTyqv7mNX_BC49LHMtOMvfUgILYmJGzM4YrA5IGPH2G7uNXAug/exec'; // ✅ URL FINALE AGGIORNATO
             console.log('🔗 Google Apps Script URL:', SCRIPT_URL);
             
-            // === RIPRISTINO JSONP (FUNZIONANTE) ===
+            // === INVIO DATI CON FETCH/POST ===
             async function submitDataToServer(data) {
-                console.log('📤 Invio dati con JSONP...');
+                console.log('📤 Invio dati con fetch/POST...');
                 console.log('📊 Dati da inviare:', data);
-                
-                return new Promise((resolve, reject) => {
-                    try {
-                        // Genera callback univoco
-                        const callbackName = 'jsonp_callback_' + Math.random().toString(36).substr(2, 9);
-                        console.log('🔄 JSONP Callback:', callbackName);
-                        
-                        // Crea URL con parametri JSONP
-                        const params = new URLSearchParams({
-                            callback: callbackName,
-                            action: 'save',
-                            data: encodeURIComponent(JSON.stringify(data))
-                        });
-                        
-                        const fullUrl = `${SCRIPT_URL}?${params.toString()}`;
-                        console.log('🔗 JSONP URL lunghezza:', fullUrl.length);
-                        console.log('🔗 JSONP URL preview:', fullUrl.substring(0, 150) + '...');
-                        
-                        // Timeout più lungo per GitHub Pages
-                        const timeout = setTimeout(() => {
-                            cleanup();
-                            reject(new Error('Timeout richiesta JSONP (60s) - GitHub Pages'));
-                        }, 60000);  // Aumentato a 60 secondi
-                        
-                        // Funzione di cleanup
-                        const cleanup = () => {
-                            if (window[callbackName]) delete window[callbackName];
-                            if (script && script.parentNode) script.parentNode.removeChild(script);
-                            clearTimeout(timeout);
-                        };
-                        
-                        // Definisci callback globale
-                        window[callbackName] = (response) => {
-                            console.log('✅ JSONP Response ricevuta:', response);
-                            cleanup();
-                            
-                            if (response.status === 'success') {
-                                resolve(response);
-                            } else {
-                                reject(new Error(response.message || 'Errore sconosciuto'));
-                            }
-                        };
-                        
-                        // Crea script tag per JSONP con retry per GitHub Pages
-                        const script = document.createElement('script');
-                        script.src = fullUrl;
-                        script.onerror = () => {
-                            console.error('❌ Errore caricamento JSONP script - tentativo retry...');
-                            cleanup();
-                            
-                            // Retry automatico dopo 2 secondi
-                            setTimeout(() => {
-                                console.log('🔄 Retry JSONP per GitHub Pages...');
-                                // Ricrea lo stesso tentativo
-                                const retryScript = document.createElement('script');
-                                retryScript.src = fullUrl;
-                                retryScript.onerror = () => {
-                                    console.error('❌ Retry fallito - problema di rete');
-                                    reject(new Error('Errore rete JSONP - GitHub Pages'));
-                                };
-                                document.head.appendChild(retryScript);
-                            }, 2000);
-                        };
-                        
-                        console.log('⏳ Invio richiesta JSONP...');
-                        document.head.appendChild(script);
-                        
-                    } catch (error) {
-                        console.error('❌ Errore setup JSONP:', error);
-                        reject(new Error('Errore configurazione JSONP: ' + error.message));
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'save', data })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        return result;
+                    } else {
+                        throw new Error(result.message || 'Errore sconosciuto');
                     }
-                });
+                } catch (error) {
+                    console.error('❌ Errore invio dati:', error);
+                    throw error;
+                }
             }
             
-            // === UPLOAD FIRMA INTELLIGENTE CON AUTO-CHUNKING ===
+            // === UPLOAD FIRMA CON FETCH/POST ===
             async function uploadClientSignatureToServer(data) {
-                console.log('🚀 === UPLOAD FIRMA INTELLIGENTE ===');
-                
-                // Validazione dati in ingresso
-                if (!data) {
-                    throw new Error('Dati upload non forniti');
-                }
-                
-                // Verifica presenza firma con nomi parametri multipli
+                console.log('🚀 === UPLOAD FIRMA CON FETCH/POST ===');
+                if (!data) throw new Error('Dati upload non forniti');
                 const signature = data.firmaTecicoTechnicianSignature || data.signatureBase64 || data.signature;
                 if (!signature) {
                     console.error('❌ Nessuna firma trovata nei dati:', Object.keys(data));
                     throw new Error('Firma non presente nei dati di upload');
                 }
-                
-                console.log('📊 Dati firma ricevuti:', {
+                const uploadData = {
                     ...data,
-                    signatureSize: signature ? `${(signature.length/1024).toFixed(1)}KB` : 'MANCANTE',
-                    parametriRicevuti: Object.keys(data),
-                    identificativo: data.identificativo,
-                    tipoIntervento: data.tipoIntervento
-                });
-                
+                    signatureBase64: signature
+                };
                 try {
-                    // Normalizza i dati per il sistema intelligente
-                    const normalizedData = {
-                        ...data,
-                        firmaTecicoTechnicianSignature: signature, // Assicura nome parametro corretto
-                        signatureBase64: signature // Fallback per compatibilità
-                    };
-                    
-                    // Usa il nuovo sistema intelligente
-                    const result = await uploadLargeSignature(normalizedData);
-                    console.log('✅ Upload firma completato con successo:', result);
-                    
-                    // Formatta risposta compatibile
-                    return {
-                        status: 'success',
-                        message: result.message || 'Firma caricata con successo',
-                        method: result.method,
-                        totalSize: result.totalSize,
-                        driveUrl: result.driveUrl
-                    };
-                    
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'upload-client-signature', ...uploadData })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        console.log('✅ Upload firma completato con successo:', result);
+                        return result;
+                    } else {
+                        throw new Error(result.message || 'Errore upload firma');
+                    }
                 } catch (error) {
-                    console.error('❌ Errore upload firma intelligente:', error);
-                    
-                    // Fallback al metodo legacy robusto
-                    console.log('🔄 Tentativo fallback al metodo legacy...');
-                    return await uploadSignatureLegacyRobust(data, signature);
+                    console.error('❌ Errore upload firma:', error);
+                    throw error;
                 }
             }
-
-            // Fallback legacy robusto per compatibilità
-            async function uploadSignatureLegacyRobust(data, signature) {
-                console.log('🔄 === FALLBACK UPLOAD LEGACY ROBUSTO ===');
-                console.log('📊 Dati per legacy upload:', { 
-                    identificativo: data.identificativo,
-                    tipoIntervento: data.tipoIntervento,
-                    utente: data.utente,
-                    luogo: data.luogo,
-                    dataInizio: data.dataInizio,
-                    signatureSize: signature ? `${(signature.length/1024).toFixed(1)}KB` : 'MANCANTE'
-                });
-                
-                return new Promise((resolve, reject) => {
-                    try {
-                        const callbackName = 'legacy_upload_' + Math.random().toString(36).substr(2, 9);
-                        
-                        // Crea oggetto dati con firma inclusa
-                        const uploadData = {
-                            identificativo: data.identificativo || 'LEGACY_' + Date.now(),
-                            tipoIntervento: data.tipoIntervento || 'mud',
-                            mudValue: data.mudValue || 'true',
-                            luogo: data.luogo || 'Luogo non specificato',
-                            dataInizio: data.dataInizio || new Date().toISOString().split('T')[0],
-                            utente: data.utente || 'admin',
-                            signatureBase64: signature
-                        };
-                        
-                        console.log('📤 Dati normalizzati per legacy:', uploadData);
-                        
-                        const params = new URLSearchParams({
-                            callback: callbackName,
-                            action: 'upload-client-signature',
-                            data: encodeURIComponent(JSON.stringify(uploadData))
-                        });
-                        
-                        const fullUrl = `${SCRIPT_URL}?${params.toString()}`;
-                        console.log('🔗 URL legacy lunghezza:', fullUrl.length);
-                        
-                        // Timeout esteso per legacy
-                        const timeout = setTimeout(() => {
-                            cleanup();
-                            reject(new Error('Timeout upload firma legacy (180s)'));
-                        }, 180000); // 3 minuti per legacy
-                        
-                        const cleanup = () => {
-                            if (window[callbackName]) delete window[callbackName];
-                            if (script && script.parentNode) script.parentNode.removeChild(script);
-                            clearTimeout(timeout);
-                        };
-                        
-                        window[callbackName] = (response) => {
-                            console.log('✅ Legacy Upload Response:', response);
-                            cleanup();
-                            
-                            if (response && (response.status === 'success' || response.success)) {
-                                resolve({
-                                    status: 'success',
-                                    message: response.message || 'Firma caricata con metodo legacy',
-                                    method: 'legacy',
-                                    driveUrl: response.driveUrl
-                                });
-                            } else {
-                                reject(new Error(response.message || response.error || 'Errore upload legacy sconosciuto'));
-                            }
-                        };
-                        
-                        const script = document.createElement('script');
-                        script.src = fullUrl;
-                        script.onerror = () => {
-                            console.error('❌ Errore rete upload legacy');
-                            cleanup();
-                            reject(new Error('Errore rete upload legacy'));
-                        };
-                        
-                        console.log('⏳ Avvio upload legacy...');
-                        document.head.appendChild(script);
-                        
-                    } catch (error) {
-                        console.error('❌ Errore setup upload legacy:', error);
-                        reject(new Error('Errore setup upload legacy: ' + error.message));
-                    }
-                });
-            }
+// ...legacy upload logic removed, now using fetch/POST only...
 
             // === ELEMENTI DOM ===
             const appScreen = document.getElementById('app-screen');
@@ -2372,6 +2211,47 @@
                 }
             } else {
                 console.error('❌ Impossibile creare firma di test');
+            }
+        };
+
+        // === FUNZIONE TEST UPLOAD LEGACY ===
+        window.testLegacyUpload = async function() {
+            console.log('🧪 === TEST UPLOAD LEGACY ROBUSTO ===');
+            
+            try {
+                // Crea dati di test per l'upload legacy
+                const testData = {
+                    identificativo: 'TEST_LEGACY_' + Date.now(),
+                    tipoIntervento: 'ordinari',
+                    luogo: 'Test Location Legacy',
+                    dataInizio: new Date().toISOString().split('T')[0],
+                    utente: 'admin',
+                    descrizione: 'Test upload legacy',
+                    materiali: 'Test materials',
+                    signatureBase64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
+                };
+                
+                console.log('📤 Invio test legacy:', testData);
+                
+                // Test upload legacy diretto
+                const legacyResponse = await uploadSignatureLegacyRobust(testData, testData.signatureBase64);
+                
+                console.log('📨 Risposta legacy:', JSON.stringify(legacyResponse, null, 2));
+                
+                if (legacyResponse.status === 'success') {
+                    console.log('✅ Test legacy riuscito!', legacyResponse);
+                    alert('✅ Test legacy upload completato con successo!');
+                } else {
+                    console.error('❌ Test legacy fallito:', legacyResponse.message);
+                    alert('❌ Test legacy fallito: ' + legacyResponse.message);
+                }
+                
+                return legacyResponse;
+                
+            } catch (error) {
+                console.error('❌ Errore test legacy:', error);
+                alert('❌ Errore test legacy: ' + error.message);
+                return { status: 'error', message: error.message };
             }
         };
 
