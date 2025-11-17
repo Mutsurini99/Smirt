@@ -1,0 +1,15 @@
+{
+  "users": {
+    "Admin": {
+      "password": "2977",
+      "role": "admin",
+      "displayName": "Amministratore",
+      "permissions": ["view", "edit", "delete", "admin"]
+    }
+  },
+  "settings": {
+    "sessionTimeout": 3600000,
+    "maxLoginAttempts": 3,
+    "requirePasswordChange": false
+  }
+}

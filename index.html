@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="it"> <!-- Rimosso h-full da qui -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- META TAG PWA (per "Installazione") -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SMIRT">
+    <meta name="theme-color" content="#1f2937"> <!-- Grigio scuro per la barra di stato -->
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Icone PWA -->
+    <link rel="icon" type="image/svg+xml" href="./SMIRT_Icon_Final.svg">
+    <link rel="apple-touch-icon" href="./SMIRT_Icon_Final.svg">
+    <link rel="apple-touch-startup-image" href="./SMIRT_Icon_Final.svg">
+    <link rel="shortcut icon" href="./SMIRT_Icon_Final.svg">
+    <link rel="mask-icon" href="./SMIRT_Icon_Final.svg" color="#1f2937">
+    
+    <!-- Meta tag aggiuntivi per PWA -->
+    <meta name="application-name" content="SMIRT Reports">
+    <meta name="msapplication-TileColor" content="#1f2937">
+    <meta name="msapplication-TileImage" content="./SMIRT_Icon_Final.svg">
+    
+    <title>App Rapporti Intervento - v2.1</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <!-- Cache Buster: 2025-11-15-16:30 -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+
+
+        #loading-overlay, #alert-modal, #new-intervento-modal {
+            display: none;
+        }
+
+        .app-section-visible {
+            display: block !important;
+        }
+        .app-flex-visible {
+            display: flex !important;
+        }
+        
+        .bozza-attiva {
+            background-color: #3b82f6 !important; /* Blu */
+            color: white !important;
+        }
+        
+        .button-loading {
+            cursor: not-allowed;
+            background-color: #9ca3af;
+        }
+        .button-loading:hover {
+            background-color: #9ca3af;
+        }
+        .spinner-sm {
+            display: inline-block;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #sidebar-menu {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(-100%);
+        }
+        #sidebar-menu.sidebar-open {
+            transform: translateX(0);
+        }
+        #sidebar-overlay {
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<!-- MODIFICA: Rimosso 'h-full' e 'overflow-hidden'. Aggiunto 'min-h-screen' -->
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+
+    <!-- SCHERMATA PRINCIPALE DELL'APP -->
+    <!-- MODIFICA: Rimosso 'h-full'. Aggiunto 'min-h-screen' -->
+    <div id="app-screen" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <!-- MODIFICA: Aggiunto 'sticky top-0 z-20' per l'intestazione fissa -->
+        <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 shadow-md flex-shrink-0 sticky top-0 z-20">
+            <!-- Pulsante per aprire il menu laterale -->
+            <button id="open-sidebar-button" class="flex items-center space-x-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+                <span class="font-bold text-xl">SMIRT</span>
+            </button>
+            <div class="flex items-center space-x-4">
+                <span id="current-mud-display" class="text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900 px-3 py-1 rounded-md hidden"></span>
+            </div>
+        </header>
+
+        <!-- Form Intervento -->
+        <!-- MODIFICA: Rimosso 'overflow-y-auto'. Mantenuto 'flex-1' per occupare lo spazio -->
+        <main class="flex-1 p-4">
+            <form id="intervento-form" class="space-y-6 max-w-4xl mx-auto">
+                <!-- Informazioni Generali -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Informazioni Generali
+                    </h3>
+                    <!-- Campo MUD nascosto -->
+                    <input id="mud" type="hidden" required>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Luogo *</label>
+                            <input id="luogo" type="text" required
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio *</label>
+                            <input id="data-inizio" type="date" required
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fine *</label>
+                            <input id="data-fine" type="date" required
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Descrizione Lavoro -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clip-rule="evenodd"></path>
+                        </svg>
+                        Descrizione del Lavoro
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrizione *</label>
+                            <textarea id="descrizione" required rows="4"
+                                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Materiali Utilizzati</label>
+                            <textarea id="materiali" rows="3"
+                                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sezione Firma del Cliente -->
+                <div class="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
+                        </svg>
+                        Firma del Cliente
+                    </h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">La firma del cliente è richiesta per completare l'intervento. Verrà inviata automaticamente al server.</p>
+                    
+                    <!-- Canvas per la firma del cliente -->
+                    <div class="mb-4">
+                        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-800">
+                            <canvas id="client-signature-canvas" 
+                                    width="400" 
+                                    height="200" 
+                                    class="w-full max-w-md mx-auto border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-900 cursor-crosshair"
+                                    style="touch-action: none;"></canvas>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">Il cliente deve firmare nell'area sopra</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Stato firma cliente -->
+                    <div id="client-signature-status" class="mb-4">
+                        <div class="flex items-center space-x-2 text-sm">
+                            <div id="client-signature-indicator" class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span id="client-signature-text" class="text-red-600 dark:text-red-400">Firma del cliente richiesta</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Pulsanti per la firma del cliente -->
+                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                        <button type="button" id="clear-client-signature" 
+                                class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-300">
+                            🗑️ Cancella Firma
+                        </button>
+                        <button type="button" id="confirm-client-signature" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 disabled:opacity-50 disabled:cursor-not-allowed" 
+                                disabled>
+                            ✅ Conferma Firma Cliente
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pulsanti Azione -->
+                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                    <button type="button" id="save-bozza"
+                            class="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium">
+                        💾 Salva Bozza
+                    </button>
+                    <button type="submit" id="submit-form"
+                            class="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 font-medium">
+                        📨 Invia Rapporto
+                    </button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- SCHERMATA IMPOSTAZIONI -->
+    <div id="settings-screen" class="min-h-screen flex-col hidden">
+        <!-- Header Impostazioni -->
+        <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 shadow-md flex-shrink-0 sticky top-0 z-20">
+            <button id="open-sidebar-settings" class="flex items-center space-x-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+                <span class="font-bold text-xl">SMIRT</span>
+            </button>
+            <h1 class="text-xl font-bold">Impostazioni</h1>
+            <div class="w-32"><!-- Spazio per bilanciare --></div>
+        </header>
+        
+        <!-- Contenuto Impostazioni -->
+        <main class="flex-1 p-4">
+            <div class="max-w-4xl mx-auto space-y-6">
+                <!-- Sezione Firma del Tecnico -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <div class="mb-4">
+                        <h2 class="text-xl font-semibold mb-2 text-gray-900 dark:text-white flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
+                            </svg>
+                            Firma del Tecnico
+                        </h2>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">La tua firma verrà salvata sul dispositivo e utilizzata automaticamente nei rapporti.</p>
+                    </div>
+                    
+                    <!-- Canvas per la firma del tecnico -->
+                    <div class="mb-4">
+                        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+                            <canvas id="tech-signature-canvas" 
+                                    width="400" 
+                                    height="200" 
+                                    class="w-full max-w-md mx-auto border border-gray-300 dark:border-gray-600 rounded bg-white cursor-crosshair"
+                                    style="touch-action: none;"></canvas>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">Disegna la tua firma nell'area sopra</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Anteprima firma salvata -->
+                    <div id="tech-signature-preview" class="mb-4 hidden">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Firma Attualmente Salvata:</label>
+                        <div class="border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-gray-50 dark:bg-gray-900">
+                            <img id="tech-signature-image" src="" alt="Firma del tecnico" class="max-w-full h-auto mx-auto" style="max-height: 100px;">
+                        </div>
+                    </div>
+                    
+                    <!-- Pulsanti per la firma del tecnico -->
+                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                        <button type="button" id="clear-tech-signature" 
+                                class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-4 focus:ring-gray-300">
+                            🗑️ Cancella
+                        </button>
+                        <button type="button" id="save-tech-signature" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300">
+                            💾 Salva Firma
+                        </button>
+                        <button type="button" id="delete-tech-signature" 
+                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-300">
+                            🗑️ Elimina Firma Salvata
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Altre impostazioni future -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md text-center">
+                    <div class="mb-4">
+                        <svg class="w-16 h-16 mx-auto text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-semibold mb-2 text-gray-900 dark:text-white">Altre Impostazioni</h2>
+                    <p class="text-gray-600 dark:text-gray-400">Altre configurazioni saranno aggiunte in futuro</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. NUOVO MENU LATERALE (Nessuna modifica, 'position: fixed' è corretto) -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden"></div>
+    <div id="sidebar-menu" class="fixed inset-y-0 left-0 w-80 max-w-[calc(100%-2.5rem)] bg-gray-50 dark:bg-gray-800 shadow-xl z-40 p-4 flex flex-col">
+        <!-- Info Utente con X di chiusura -->
+        <div class="mb-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-between">
+            <span id="current-user" class="text-sm text-gray-600 dark:text-gray-300"></span>
+            <button id="close-sidebar-button" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Header Menu -->
+        <div class="mb-6">
+            <h2 class="text-xl font-bold">Menu</h2>
+        </div>
+        
+        <!-- Navigazione dalle Impostazioni -->
+        <div id="settings-navigation" class="mb-4 hidden">
+            <button id="back-to-interventi" class="w-full px-4 py-3 font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span>Interventi</span>
+            </button>
+        </div>
+        
+        <!-- Contenuto Menu -->
+        <div class="flex-grow space-y-4 overflow-y-auto">
+            <!-- Sezione Home -->
+            <div>
+                <button id="home-button" class="w-full flex items-center justify-center p-3 font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10.707 2.293a1 1 0 00-1.414 0l-9 9a1 1 0 001.414 1.414L2 12.414V17a1 1 0 001 1h5a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h5a1 1 0 001-1v-4.586l.293.293a1 1 0 001.414-1.414l-9-9z"></path>
+                        </svg>
+                        <span>Home</span>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Sezione Interventi -->
+            <div>
+                <button id="interventi-toggle" class="w-full flex items-center justify-between p-3 text-left font-medium text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span>Interventi</span>
+                    </div>
+                    <svg id="interventi-arrow" class="w-4 h-4 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+                
+                <!-- Sottomenu Interventi -->
+                <div id="interventi-submenu" class="mt-2 ml-4 space-y-2">
+                    <!-- Nuovo Intervento -->
+                    <button id="new-intervento-button" class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span>Nuovo Intervento</span>
+                    </button>
+                    
+                    <!-- Bozze -->
+                    <button id="bozze-toggle" class="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>Bozze</span>
+                        </div>
+                        <svg id="bozze-arrow" class="w-3 h-3 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Lista Bozze -->
+                    <div id="bozze-list" class="ml-4 space-y-2 hidden">
+                        <!-- Le bozze verranno inserite qui dinamicamente -->
+                        <div class="text-gray-500 text-xs italic p-2">
+                            Nessuna bozza salvata
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer Menu (Logout) -->
+        <div class="mt-4 flex-shrink-0 space-y-2">
+            <!-- Pulsante Installa App -->
+            <button id="install-app-button" class="w-full px-4 py-3 font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2 hidden">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                </svg>
+                <span>Installa App</span>
+            </button>
+            
+            <!-- Pulsante Impostazioni -->
+            <button id="settings-button" class="w-full px-4 py-3 font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 flex items-center justify-center space-x-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path>
+                </svg>
+                <span>Impostazioni</span>
+            </button>
+            
+            <!-- Istruzioni Installazione Mobile -->
+            <div id="mobile-install-instructions" class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg text-sm hidden">
+                <p class="font-semibold mb-2">📱 Installa come App:</p>
+                <ul class="space-y-1 text-blue-700 dark:text-blue-300">
+                    <li><strong>Chrome:</strong> Menu → "Installa app"</li>
+                    <li><strong>Safari:</strong> Condividi → "Aggiungi a Home"</li>
+                    <li><strong>Firefox:</strong> Menu → "Installa"</li>
+                </ul>
+            </div>
+            
+            <button id="logout-button" class="w-full px-4 py-3 font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center justify-center space-x-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"></path>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
+
+    <!-- 4. OVERLAY DI CARICAMENTO (Nessuna modifica) -->
+    <div id="loading-overlay" class="fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-50">
+        <div class="text-white text-lg flex flex-col items-center">
+            <div class="spinner-sm mb-4"></div>
+            <div id="loading-text">Caricamento...</div>
+        </div>
+    </div>
+
+    <!-- 5. MODALE DI AVVISO / CONFERMA (Nessuna modifica) -->
+    <div id="alert-modal" class="fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
+            <div id="alert-content" class="text-center">
+                <div id="alert-icon" class="w-12 h-12 mx-auto mb-4"></div>
+                <h3 id="alert-title" class="text-xl font-bold mb-2"></h3>
+                <p id="alert-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
+                <div class="flex space-x-4">
+                    <button id="alert-cancel" class="flex-1 px-4 py-2 text-gray-500 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">
+                        Annulla
+                    </button>
+                    <button id="alert-confirm" class="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                        Conferma
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 6. NUOVO MODALE PER ID INTERVENTO (Nessuna modifica) -->
+    <div id="new-intervento-modal" class="fixed inset-0 z-50 items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="w-full max-w-md p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
+            <h3 class="text-xl font-bold mb-4 text-center">Nuovo Intervento</h3>
+            <div class="space-y-4">
+                <!-- Selezione Tipo Intervento -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo Intervento</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="tipo-mud" type="button" class="px-4 py-3 text-sm font-medium border-2 border-blue-600 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500">
+                            📋 MUD
+                        </button>
+                        <button id="tipo-ordinario" type="button" class="px-4 py-3 text-sm font-medium border-2 border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500">
+                            📄 Ordinario
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Campo Codice MUD (visibile solo per tipo MUD) -->
+                <div id="mud-code-section">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Codice Intervento (4 cifre)</label>
+                    <input id="new-mud-input" type="text" placeholder="es. 1234" maxlength="4" pattern="[0-9]{4}"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono">
+                    <div class="text-xs text-gray-500 mt-1 text-center">Il sistema aggiungerà automaticamente "-01"</div>
+                </div>
+                
+                <!-- Messaggio per Ordinario -->
+                <div id="ordinario-message" class="hidden">
+                    <div class="p-3 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg">
+                        <p class="text-sm text-green-700 dark:text-green-300 text-center">
+                            📄 Intervento ordinario selezionato<br>
+                            <span class="text-xs">Non è richiesto alcun codice</span>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button id="new-intervento-cancel" class="flex-1 px-4 py-2 text-gray-500 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300 dark:hover:bg-gray-500">
+                        Annulla
+                    </button>
+                    <button id="new-intervento-confirm" class="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                        Crea
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Player audio nascosto per TTS -->
+    <audio id="audio-player" class="hidden"></audio>
+
+
+    <!-- Script per gestione utenti -->
+    <script src="./js/user-manager.js"></script>
+
+    <!-- SCRIPT PRINCIPALE DELL'APP -->
+    <script>
+        // Controllo autenticazione all'avvio
+        (async () => {
+            await userManager.loadUsers();
+
+            if (!userManager.isSessionValid()) {
+                // Utente non autenticato, reindirizza alla pagina di login
+                window.location.href = 'login.html';
+                throw new Error('Non autenticato'); // Ferma l'esecuzione dello script
+            }
+        })();
+
+        // === VARIABILI GLOBALI MENU ===
+        let interventiToggle, interventiSubmenu, interventiArrow;
+        let bozzeToggle, bozzeList, bozzeArrow;
+
+        // === VARIABILI GLOBALI FIRME ===
+        let techSignatureCanvas, techSignatureCtx;
+        let clientSignatureCanvas, clientSignatureCtx;
+        let isTechSigning = false, isClientSigning = false;
+        let techSignatureData = null, clientSignatureData = null;
+        let clientSignatureConfirmed = false; // Traccia se la firma cliente è stata confermata
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚨 DOMCONTENTLOADED ATTIVATO! Inizio inizializzazione...');
+            
+            // === CONFIGURAZIONE ===
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx1pvO0am4ZEnyrQzOfkTyqv7mNX_BC49LHMtOMvfUgILYmJGzM4YrA5IGPH2G7uNXAug/exec'; // ✅ URL FINALE AGGIORNATO
+            console.log('🔗 Google Apps Script URL:', SCRIPT_URL);
+            
+            // === RIPRISTINO JSONP (FUNZIONANTE) ===
+            async function submitDataToServer(data) {
+                console.log('📤 Invio dati con JSONP...');
+                console.log('📊 Dati da inviare:', data);
+                
+                return new Promise((resolve, reject) => {
+                    try {
+                        // Genera callback univoco
+                        const callbackName = 'jsonp_callback_' + Math.random().toString(36).substr(2, 9);
+                        console.log('🔄 JSONP Callback:', callbackName);
+                        
+                        // Crea URL con parametri JSONP
+                        const params = new URLSearchParams({
+                            callback: callbackName,
+                            action: 'save',
+                            data: encodeURIComponent(JSON.stringify(data))
+                        });
+                        
+                        const fullUrl = `${SCRIPT_URL}?${params.toString()}`;
+                        console.log('🔗 JSONP URL lunghezza:', fullUrl.length);
+                        console.log('🔗 JSONP URL preview:', fullUrl.substring(0, 150) + '...');
+                        
+                        // Timeout per la richiesta
+                        const timeout = setTimeout(() => {
+                            cleanup();
+                            reject(new Error('Timeout richiesta JSONP (30s)'));
+                        }, 30000);
+                        
+                        // Funzione di cleanup
+                        const cleanup = () => {
+                            if (window[callbackName]) delete window[callbackName];
+                            if (script && script.parentNode) script.parentNode.removeChild(script);
+                            clearTimeout(timeout);
+                        };
+                        
+                        // Definisci callback globale
+                        window[callbackName] = (response) => {
+                            console.log('✅ JSONP Response ricevuta:', response);
+                            cleanup();
+                            
+                            if (response.status === 'success') {
+                                resolve(response);
+                            } else {
+                                reject(new Error(response.message || 'Errore sconosciuto'));
+                            }
+                        };
+                        
+                        // Crea script tag per JSONP
+                        const script = document.createElement('script');
+                        script.src = fullUrl;
+                        script.onerror = () => {
+                            console.error('❌ Errore caricamento JSONP script');
+                            cleanup();
+                            reject(new Error('Errore rete JSONP'));
+                        };
+                        
+                        console.log('⏳ Invio richiesta JSONP...');
+                        document.head.appendChild(script);
+                        
+                    } catch (error) {
+                        console.error('❌ Errore setup JSONP:', error);
+                        reject(new Error('Errore configurazione JSONP: ' + error.message));
+                    }
+                });
+            }
+            
+            // === RIPRISTINO UPLOAD FIRMA JSONP ===
+            async function uploadClientSignatureToServer(data) {
+                console.log('🖊️ Upload firma con JSONP...');
+                console.log('📊 Dati firma da inviare:', { ...data, signatureBase64: data.signatureBase64 ? '[PRESENTE]' : '[MANCANTE]' });
+                
+                return new Promise((resolve, reject) => {
+                    try {
+                        // Genera callback univoco per upload firma
+                        const callbackName = 'jsonp_upload_' + Math.random().toString(36).substr(2, 9);
+                        console.log('🔄 JSONP Upload Callback:', callbackName);
+                        
+                        // Crea URL con parametri JSONP per upload
+                        const params = new URLSearchParams({
+                            callback: callbackName,
+                            action: 'upload-client-signature',
+                            data: encodeURIComponent(JSON.stringify(data))
+                        });
+                        
+                        const fullUrl = `${SCRIPT_URL}?${params.toString()}`;
+                        console.log('🔗 JSONP Upload URL lunghezza:', fullUrl.length);
+                        
+                        // Timeout per upload (più lungo per le immagini)
+                        const timeout = setTimeout(() => {
+                            cleanup();
+                            reject(new Error('Timeout upload firma JSONP (45s)'));
+                        }, 45000);
+                        
+                        // Funzione di cleanup
+                        const cleanup = () => {
+                            if (window[callbackName]) delete window[callbackName];
+                            if (script && script.parentNode) script.parentNode.removeChild(script);
+                            clearTimeout(timeout);
+                        };
+                        
+                        // Definisci callback globale per upload
+                        window[callbackName] = (response) => {
+                            console.log('✅ JSONP Upload Response:', response);
+                            cleanup();
+                            
+                            if (response.status === 'success') {
+                                resolve(response);
+                            } else {
+                                reject(new Error(response.message || 'Errore upload sconosciuto'));
+                            }
+                        };
+                        
+                        // Crea script tag per JSONP upload
+                        const script = document.createElement('script');
+                        script.src = fullUrl;
+                        script.onerror = () => {
+                            console.error('❌ Errore caricamento JSONP upload script');
+                            cleanup();
+                            reject(new Error('Errore rete JSONP upload'));
+                        };
+                        
+                        console.log('⏳ Invio upload firma JSONP...');
+                        document.head.appendChild(script);
+                        
+                    } catch (error) {
+                        console.error('❌ Errore setup JSONP upload:', error);
+                        reject(new Error('Errore configurazione JSONP upload: ' + error.message));
+                    }
+                });
+            }
+            
+            // === MAPPATURA UTENTI PER BUONI LAVORO ===
+            const USER_CODE_MAPPING = {
+                'admin': 'A',
+                'tecnico1': 'T',
+                'tecnico2': 'U',
+                'valentino': 'V'
+            };
+
+            // === FUNZIONE TEST JSONP ===
+            window.testServerConnection = async function() {
+                console.log('🧪 === TEST CONNESSIONE SERVER JSONP ===');
+                
+                // Test JSONP semplice
+                console.log('📋 Test JSONP semplice');
+                return new Promise((resolve) => {
+                    const callbackName = 'test_callback_' + Date.now();
+                    const testUrl = `${SCRIPT_URL}?callback=${callbackName}&action=test&simple=true`;
+                    
+                    console.log('🔗 Test JSONP URL:', testUrl);
+                    
+                    // Timeout
+                    const timeout = setTimeout(() => {
+                        cleanup();
+                        console.log('⏰ Timeout test JSONP');
+                        resolve(false);
+                    }, 10000);
+                    
+                    // Cleanup function
+                    const cleanup = () => {
+                        if (window[callbackName]) delete window[callbackName];
+                        if (script && script.parentNode) script.parentNode.removeChild(script);
+                        clearTimeout(timeout);
+                    };
+                    
+                    // Callback globale
+                    window[callbackName] = (response) => {
+                        console.log('✅ Test JSONP Response:', response);
+                        cleanup();
+                        resolve(true);
+                    };
+                    
+                    // Crea script con debug migliorato
+                    const script = document.createElement('script');
+                    script.src = testUrl;
+                    script.onerror = (error) => {
+                        console.error('❌ Errore caricamento script JSONP:', error);
+                        console.error('❌ URL che ha fallito:', testUrl);
+                        console.error('❌ Possibile causa: script non aggiornato o URL errato');
+                        cleanup();
+                        resolve(false);
+                    };
+                    
+                    // Timeout per script caricamento
+                    script.onload = () => {
+                        console.log('✅ Script JSONP caricato, in attesa callback...');
+                    };
+                    
+                    document.head.appendChild(script);
+                });
+            };
+            
+            // Test diretto aprendo URL nel browser
+            window.testServerConnectionDirect = function() {
+                const testUrl = SCRIPT_URL + '?action=ping&simple=true';
+                console.log('🔗 Apri questo URL nel browser:', testUrl);
+                window.open(testUrl, '_blank');
+            };
+
+            // === ELEMENTI DOM ===
+            const appScreen = document.getElementById('app-screen');
+            const currentUser = document.getElementById('current-user');
+            const logoutBtn = document.getElementById('logout-btn');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingText = document.getElementById('loading-text');
+
+            // Form elements
+            const interventoForm = document.getElementById('intervento-form');
+            const mudInput = document.getElementById('mud');
+            const luogoInput = document.getElementById('luogo');
+            const dataInizioInput = document.getElementById('data-inizio');
+            const dataFineInput = document.getElementById('data-fine');
+            const descrizioneInput = document.getElementById('descrizione');
+            const materialiInput = document.getElementById('materiali');
+
+            // Canvas per firme - RIMOSSO COMPLETAMENTE
+
+            // Pulsanti
+            const saveBozzaButton = document.getElementById('save-bozza');
+            const submitButton = document.getElementById('submit-form');
+
+            // Sidebar
+            const openSidebarButton = document.getElementById('open-sidebar-button');
+            const closeSidebarButton = document.getElementById('close-sidebar-button');
+            const sidebarMenu = document.getElementById('sidebar-menu');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            const newInterventoButton = document.getElementById('new-intervento-button');
+
+            // === INIZIALIZZAZIONE VARIABILI GLOBALI MENU ===
+            console.log('🚀 Inizializzazione menu...');
+            interventiToggle = document.getElementById('interventi-toggle');
+            interventiSubmenu = document.getElementById('interventi-submenu');
+            interventiArrow = document.getElementById('interventi-arrow');
+            bozzeToggle = document.getElementById('bozze-toggle');
+            bozzeList = document.getElementById('bozze-list');
+            bozzeArrow = document.getElementById('bozze-arrow');
+            
+            console.log('🔍 Elementi menu trovati:', {
+                interventiToggle: !!interventiToggle,
+                interventiSubmenu: !!interventiSubmenu,
+                interventiArrow: !!interventiArrow,
+                bozzeToggle: !!bozzeToggle,
+                bozzeList: !!bozzeList,
+                bozzeArrow: !!bozzeArrow
+            });
+            
+            // === DEFINIZIONE FUNZIONI MENU ===
+            function toggleInterventiMenu() {
+                console.log('🔽 Toggle menu interventi chiamato');
+                
+                if (!interventiSubmenu || !interventiArrow) {
+                    console.error('❌ Elementi menu interventi non trovati:', {
+                        interventiSubmenu: !!interventiSubmenu,
+                        interventiArrow: !!interventiArrow
+                    });
+                    return;
+                }
+                
+                const isOpen = !interventiSubmenu.classList.contains('hidden');
+                console.log('📊 Stato menu:', { isOpen });
+                
+                if (isOpen) {
+                    interventiSubmenu.classList.add('hidden');
+                    interventiArrow.classList.remove('rotate-180');
+                } else {
+                    interventiSubmenu.classList.remove('hidden');
+                    interventiArrow.classList.add('rotate-180');
+                    // Chiude il menu bozze se aperto
+                    if (bozzeList && bozzeArrow) {
+                        bozzeList.classList.add('hidden');
+                        bozzeArrow.classList.remove('rotate-180');
+                    }
+                }
+            }
+            
+            function toggleBozzeList() {
+                console.log('🔽 Toggle menu bozze chiamato');
+                
+                if (!bozzeList || !bozzeArrow) {
+                    console.error('❌ Elementi menu bozze non trovati');
+                    return;
+                }
+                
+                const isOpen = !bozzeList.classList.contains('hidden');
+                if (isOpen) {
+                    bozzeList.classList.add('hidden');
+                    bozzeArrow.classList.remove('rotate-180');
+                } else {
+                    bozzeList.classList.remove('hidden');
+                    bozzeArrow.classList.add('rotate-180');
+                    // Chiude il menu interventi se aperto
+                    if (interventiSubmenu && interventiArrow) {
+                        interventiSubmenu.classList.add('hidden');
+                        interventiArrow.classList.remove('rotate-180');
+                    }
+                }
+            }
+
+            // Modali
+            const alertModal = document.getElementById('alert-modal');
+            const newInterventoModal = document.getElementById('new-intervento-modal');
+            const newMudInput = document.getElementById('new-mud-input');
+            const newInterventoCancel = document.getElementById('new-intervento-cancel');
+            const newInterventoConfirm = document.getElementById('new-intervento-confirm');
+
+            // PWA
+            const installAppButton = document.getElementById('install-app-button');
+            const mobileInstallInstructions = document.getElementById('mobile-install-instructions');
+            
+            // Display MUD corrente
+            const currentMudDisplay = document.getElementById('current-mud-display');
+            
+            // Pulsanti navigazione
+            const settingsButton = document.getElementById('settings-button');
+            const backToAppButton = document.getElementById('back-to-app-button');
+            
+            // Elementi tipo intervento
+            const tipoMudButton = document.getElementById('tipo-mud');
+            const tipoOrdinarioButton = document.getElementById('tipo-ordinario');
+            const mudCodeSection = document.getElementById('mud-code-section');
+            const ordinarioMessage = document.getElementById('ordinario-message');
+            
+            // Altri elementi
+            const openSidebarSettings = document.getElementById('open-sidebar-settings');
+
+            // === STATO APPLICAZIONE ===
+            let currentUsername = '';
+            let currentDraft = null;
+            let selectedInterventoType = 'mud'; // 'mud' o 'ordinario'
+            
+            // === FUNZIONI GESTIONE MUD ===
+            function updateMudDisplay(mud) {
+                if (mud && mud.trim()) {
+                    const mudValue = mud.trim();
+                    if (mudValue.startsWith('ORD-')) {
+                        currentMudDisplay.textContent = `Intervento Ordinario`;
+                        currentMudDisplay.className = 'text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900 px-3 py-1 rounded-md';
+                    } else {
+                        currentMudDisplay.textContent = `MUD: ${mudValue}`;
+                        currentMudDisplay.className = 'text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900 px-3 py-1 rounded-md';
+                    }
+                    currentMudDisplay.classList.remove('hidden');
+                } else {
+                    currentMudDisplay.classList.add('hidden');
+                }
+            }
+            
+            function generateMudFromCode(code) {
+                // Valida che sia un numero di 4 cifre
+                if (!/^[0-9]{4}$/.test(code)) {
+                    throw new Error('Il codice deve essere di esattamente 4 cifre numeriche');
+                }
+                return code + '-01';
+            }
+            
+            // === GESTIONE TIPO INTERVENTO ===
+            function selectInterventoType(type) {
+                selectedInterventoType = type;
+                
+                if (type === 'mud') {
+                    // Stile pulsante MUD selezionato
+                    tipoMudButton.className = 'px-4 py-3 text-sm font-medium border-2 border-blue-600 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500';
+                    tipoOrdinarioButton.className = 'px-4 py-3 text-sm font-medium border-2 border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500';
+                    
+                    // Mostra sezione codice MUD
+                    mudCodeSection.classList.remove('hidden');
+                    ordinarioMessage.classList.add('hidden');
+                } else {
+                    // Stile pulsante Ordinario selezionato
+                    tipoOrdinarioButton.className = 'px-4 py-3 text-sm font-medium border-2 border-green-600 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500';
+                    tipoMudButton.className = 'px-4 py-3 text-sm font-medium border-2 border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500';
+                    
+                    // Nascondi sezione codice MUD
+                    mudCodeSection.classList.add('hidden');
+                    ordinarioMessage.classList.remove('hidden');
+                }
+            }
+
+            // === FUNZIONI UTILITÀ ===
+            function showLoading(message = 'Caricamento...') {
+                loadingText.textContent = message;
+                loadingOverlay.classList.add('app-flex-visible');
+            }
+
+            function hideLoading() {
+                loadingOverlay.classList.remove('app-flex-visible');
+            }
+
+            function showAlert(title, message, icon = '⚠️') {
+                document.getElementById('alert-title').textContent = title;
+                document.getElementById('alert-message').textContent = message;
+                document.getElementById('alert-icon').textContent = icon;
+                alertModal.classList.add('app-flex-visible');
+                
+                // Auto-chiusura dopo 3 secondi
+                setTimeout(() => hideAlert(), 3000);
+            }
+
+            function hideAlert() {
+                alertModal.classList.remove('app-flex-visible');
+            }
+
+            function getCurrentDate() {
+                return new Date().toISOString().split('T')[0];
+            }
+
+            // === GESTIONE CANVAS FIRME - RIMOSSO COMPLETAMENTE ===
+
+            // === GESTIONE BOZZE ===
+            function saveDraft() {
+                if (!mudInput.value.trim()) {
+                    showAlert('Errore', 'Inserisci un MUD per salvare la bozza', '⚠️');
+                    return;
+                }
+
+                const mudValue = mudInput.value.trim();
+                const interventoType = mudValue.startsWith('ORD-') ? 'ordinario' : 'mud';
+                
+                const draftData = {
+                    id: mudValue,
+                    user: currentUsername,
+                    timestamp: new Date().toISOString(),
+                    type: interventoType,
+                    data: {
+                        mud: mudValue,
+                        luogo: luogoInput.value.trim(),
+                        dataInizio: dataInizioInput.value,
+                        dataFine: dataFineInput.value,
+                        descrizione: descrizioneInput.value.trim(),
+                        materiali: materialiInput.value.trim()
+                    }
+                };
+
+                // Salva in localStorage
+                const drafts = JSON.parse(localStorage.getItem('smirt_drafts') || '{}');
+                drafts[draftData.id] = draftData;
+                localStorage.setItem('smirt_drafts', JSON.stringify(drafts));
+
+                currentDraft = draftData;
+                loadSavedDrafts();
+                showAlert('Successo', 'Bozza salvata con successo', '✅');
+            }
+
+            function loadDraft(draftId) {
+                const drafts = JSON.parse(localStorage.getItem('smirt_drafts') || '{}');
+                const draft = drafts[draftId];
+                
+                if (draft) {
+                    mudInput.value = draft.data.mud || '';
+                    luogoInput.value = draft.data.luogo || '';
+                    dataInizioInput.value = draft.data.dataInizio || getCurrentDate();
+                    dataFineInput.value = draft.data.dataFine || getCurrentDate();
+                    descrizioneInput.value = draft.data.descrizione || '';
+                    materialiInput.value = draft.data.materiali || '';
+                    
+                    // Aggiorna display MUD con tipo corretto
+                    updateMudDisplay(draft.data.mud);
+                    
+                    // Imposta il tipo di intervento corrente
+                    const mudValue = draft.data.mud || '';
+                    selectedInterventoType = mudValue.startsWith('ORD-') ? 'ordinario' : 'mud';
+                    
+                    currentDraft = draft;
+                    closeSidebar();
+                }
+            }
+
+            function deleteDraft(draftId) {
+                const drafts = JSON.parse(localStorage.getItem('smirt_drafts') || '{}');
+                delete drafts[draftId];
+                localStorage.setItem('smirt_drafts', JSON.stringify(drafts));
+                
+                if (currentDraft && currentDraft.id === draftId) {
+                    currentDraft = null;
+                }
+                
+                loadSavedDrafts();
+            }
+
+            function loadSavedDrafts() {
+                const drafts = JSON.parse(localStorage.getItem('smirt_drafts') || '{}');
+                const userDrafts = Object.values(drafts).filter(draft => draft.user === currentUsername);
+                
+                bozzeList.innerHTML = '';
+                
+                if (userDrafts.length === 0) {
+                    bozzeList.innerHTML = '<div class="text-gray-500 text-sm italic">Nessuna bozza salvata</div>';
+                    return;
+                }
+                
+                userDrafts.forEach(draft => {
+                    const draftElement = document.createElement('div');
+                    draftElement.className = `p-3 bg-white dark:bg-gray-700 rounded-lg border hover:border-blue-500 cursor-pointer ${currentDraft && currentDraft.id === draft.id ? 'bozza-attiva' : ''}`;
+                    
+                    const isOrdinario = draft.data.mud && draft.data.mud.startsWith('ORD-');
+                    const displayTitle = isOrdinario ? 'Intervento Ordinario' : draft.data.mud;
+                    const typeIcon = isOrdinario ? '📄' : '📋';
+                    const typeColor = isOrdinario ? 'text-green-600' : 'text-blue-600';
+                    
+                    draftElement.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="font-medium text-sm flex items-center">
+                                    <span class="mr-1">${typeIcon}</span>
+                                    <span class="${typeColor}">${displayTitle}</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">${new Date(draft.timestamp).toLocaleString()}</div>
+                                <div class="text-xs text-gray-600 mt-1">${draft.data.luogo || 'Nessun luogo'}</div>
+                            </div>
+                            <button class="text-red-500 hover:text-red-700 ml-2" onclick="deleteDraft('${draft.id}')">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    
+                    draftElement.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'svg' && e.target.tagName !== 'path') {
+                            loadDraft(draft.id);
+                        }
+                    });
+                    
+                    bozzeList.appendChild(draftElement);
+                });
+            }
+
+
+
+            // === GESTIONE SIDEBAR ===
+            function openSidebar() {
+                sidebarOverlay.classList.remove('hidden');
+                sidebarMenu.classList.add('sidebar-open');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeSidebar() {
+                sidebarOverlay.classList.add('hidden');
+                sidebarMenu.classList.remove('sidebar-open');
+                document.body.style.overflow = '';
+            }
+            
+            // === GESTIONE SCHERMATE ===
+            function showSettingsScreen() {
+                document.getElementById('app-screen').classList.add('hidden');
+                document.getElementById('settings-screen').classList.remove('hidden');
+                document.getElementById('settings-screen').classList.add('flex');
+                closeSidebar();
+            }
+            
+            function showAppScreen() {
+                document.getElementById('settings-screen').classList.add('hidden');
+                document.getElementById('settings-screen').classList.remove('flex');
+                document.getElementById('app-screen').classList.remove('hidden');
+                closeSidebar();
+            }
+            
+            // === GESTIONE MENU A TENDINA (SPOSTATA DOPO INIZIALIZZAZIONE) ===
+            
+            function toggleBozzeList() {
+                const isOpen = !bozzeList.classList.contains('hidden');
+                if (isOpen) {
+                    bozzeList.classList.add('hidden');
+                    bozzeArrow.classList.remove('rotate-180');
+                } else {
+                    bozzeList.classList.remove('hidden');
+                    bozzeArrow.classList.add('rotate-180');
+                }
+            }
+
+            // === FUNZIONI HELPER ===
+            function getCurrentInterventoType() {
+                // Determina il tipo basandosi sulla presenza di contenuto nel campo MUD
+                const mudValue = mudInput.value.trim();
+                
+                console.log('🔍 Valore MUD per determinare tipo:', mudValue);
+                
+                // Se il campo MUD ha contenuto, è un intervento MUD
+                if (mudValue && mudValue.length > 0) {
+                    console.log('✅ Tipo rilevato: MUD (campo MUD compilato)');
+                    return 'mud';
+                } else {
+                    console.log('✅ Tipo rilevato: Ordinario (campo MUD vuoto)');
+                    return 'ordinario';
+                }
+            }
+
+            // === FUNZIONE PRINCIPALE SUBMIT ===
+            async function submitFormData() {
+                // Validazione campi obbligatori
+                if (!mudInput.value.trim()) {
+                    showAlert('Errore', 'Il campo MUD è obbligatorio', '⚠️');
+                    return false;
+                }
+                if (!luogoInput.value.trim()) {
+                    showAlert('Errore', 'Il campo Luogo è obbligatorio', '⚠️');
+                    return false;
+                }
+                if (!dataInizioInput.value) {
+                    showAlert('Errore', 'Il campo Data Inizio è obbligatorio', '⚠️');
+                    return false;
+                }
+                if (!dataFineInput.value) {
+                    showAlert('Errore', 'Il campo Data Fine è obbligatorio', '⚠️');
+                    return false;
+                }
+                if (!descrizioneInput.value.trim()) {
+                    showAlert('Errore', 'Il campo Descrizione è obbligatorio', '⚠️');
+                    return false;
+                }
+
+                // Validazione firma del cliente
+                if (!clientSignatureData || !clientSignatureConfirmed) {
+                    if (!clientSignatureData) {
+                        showAlert('Errore', 'La firma del cliente è obbligatoria per completare l\'intervento', '⚠️');
+                    } else if (!clientSignatureConfirmed) {
+                        showAlert('Errore', 'Devi confermare la firma del cliente cliccando il pulsante "Conferma Firma Cliente"', '⚠️');
+                    }
+                    return false;
+                }
+
+                // Validazione date
+                const dataInizio = new Date(dataInizioInput.value);
+                const dataFine = new Date(dataFineInput.value);
+                if (dataFine < dataInizio) {
+                    showAlert('Errore', 'La data fine non può essere precedente alla data inizio', '⚠️');
+                    return false;
+                }
+
+                try {
+                    showLoading('Invio rapporto in corso...');
+
+                    // Prepara i dati (SENZA firme - inviate separatamente)
+                    const tipoIntervento = getCurrentInterventoType();
+                    const formData = {
+                        user: currentUsername,
+                        tipoIntervento: tipoIntervento, // 'mud' o 'ordinario'
+                        mud: mudInput.value.trim(),
+                        luogo: luogoInput.value.trim(),
+                        dataInizio: dataInizioInput.value,
+                        dataFine: dataFineInput.value,
+                        descrizione: descrizioneInput.value.trim(),
+                        materiali: materialiInput.value.trim()
+                        // Firme inviate separatamente nella fase 2
+                    };
+
+                    console.log('📊 FASE 1 - Dati da inviare:');
+                    console.log('  Tipo intervento determinato:', tipoIntervento);
+                    console.log('  Campo MUD:', formData.mud);
+                    console.log('  Utente:', formData.user);
+                    console.log('  Luogo:', formData.luogo);
+                    console.log('  Data inizio:', formData.dataInizio);
+                    console.log('📤 Invio dati al Google Sheet:', formData);
+                    console.log('🔗 URL configurato:', SCRIPT_URL);
+                    console.log('📋 Dettagli invio:');
+                    console.log('  - Utente:', formData.user);
+                    console.log('  - MUD:', formData.mud);
+                    console.log('  - Luogo:', formData.luogo);
+                    console.log('  - Firme:', {
+                        tecnico: !!formData.firmaTecnico ? 'Presente' : 'Mancante',
+                        cliente: !!formData.firmaCliente ? 'Presente' : 'Mancante'
+                    });
+
+                    // FASE 1: Invio dati principali al foglio corretto (MUD o Ordinari)
+                    console.log('🚀 FASE 1: Invio dati al foglio', getCurrentInterventoType().toUpperCase());
+                    const response1 = await submitDataToServer(formData);
+                    console.log('📨 FASE 1 - Risposta ricevuta:', response1);
+                    
+                    if (response1.status !== 'success') {
+                        console.error('❌ FASE 1 - Errore dal server:', response1);
+                        throw new Error(response1.message || 'Errore invio dati al Google Sheet');
+                    }
+                    
+                    console.log('✅ FASE 1 completata - Dati salvati nel foglio:', response1.sheetName);
+                    
+                    // FASE 2: Invio firma cliente separatamente
+                    if (clientSignatureData) {
+                        console.log('🖊️ FASE 2: Invio firma cliente...');
+                        console.log('📝 Dimensione firma Base64:', clientSignatureData.length);
+                        console.log('📋 Formato firma:', clientSignatureData.substring(0, 50) + '...');
+                        
+                        // Crea identificativo più preciso con timestamp
+                        const timestamp = new Date().getTime();
+                        const identificativo = `${formData.luogo}_${formData.dataInizio}_${timestamp}`;
+                        console.log('🔑 Identificativo generato:', identificativo);
+                        
+                        const signaturePayload = {
+                            identificativo: identificativo,
+                            tipoIntervento: getCurrentInterventoType(),
+                            mudValue: formData.mud,
+                            luogo: formData.luogo,
+                            dataInizio: formData.dataInizio,
+                            utente: formData.user,
+                            signatureBase64: clientSignatureData
+                        };
+                        
+                        console.log('📦 Payload firma cliente:', {
+                            ...signaturePayload,
+                            signatureBase64: 'BASE64_DATA_' + clientSignatureData.length + '_chars'
+                        });
+                        
+                        const response2 = await uploadClientSignatureToServer(signaturePayload);
+                        
+                        console.log('📨 FASE 2 - Risposta firma completa:', JSON.stringify(response2, null, 2));
+                        
+                        if (response2.status !== 'success') {
+                            console.error('❌ FASE 2 - Errore upload firma (critico):', response2.message);
+                            console.error('🔍 Dettagli errore:', response2);
+                            // Non blocchiamo l'intero processo, ma logghiamo l'errore
+                            showAlert('Attenzione', 'Rapporto salvato ma errore upload firma cliente: ' + response2.message, '⚠️');
+                        } else {
+                            console.log('✅ FASE 2 completata - Firma cliente caricata con successo');
+                            console.log('🔗 URL Drive firma:', response2.driveUrl);
+                            console.log('📊 Riga aggiornata:', response2.rowUpdated);
+                        }
+                    }
+                    
+                    const result = response1;
+                    hideLoading();
+
+                    // Mostra il buono di lavoro generato
+                    let successMessage = '✅ Rapporto inviato con successo al Google Sheet!';
+                    
+                    if (result.buonoLavoro) {
+                        successMessage += `\n\n📋 Buono di Lavoro: ${result.buonoLavoro}`;
+                    }
+                    
+                    if (result.row) {
+                        successMessage += `\n📊 Salvato nella riga: ${result.row}`;
+                    }
+                    
+                    successMessage += `\n\n🗓️ Data invio: ${new Date().toLocaleString('it-IT')}`;
+                    successMessage += `\n👤 Utente: ${formData.user}`;
+                    successMessage += `\n🏷️ MUD: ${formData.mud}`;
+
+                    showAlert('Successo', successMessage, '✅');
+
+                    // Rimuovi la bozza se esistente
+                    if (currentDraft) {
+                        deleteDraft(currentDraft.id);
+                        currentDraft = null;
+                    }
+
+                    // Reset form
+                    interventoForm.reset();
+                    
+                    // Reset stato firme
+                    clientSignatureData = null;
+                    clientSignatureConfirmed = false;
+                    if (clientSignatureCanvas && clientSignatureCtx) {
+                        clearSignature(clientSignatureCanvas, clientSignatureCtx, 'client');
+                    }
+                    
+                    // Nasconde display MUD e ripristina colore default
+                    updateMudDisplay('');
+                    currentMudDisplay.className = 'text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900 px-3 py-1 rounded-md hidden';
+                    
+                    // Reimposta date
+                    const today = getCurrentDate();
+                    dataInizioInput.value = today;
+                    dataFineInput.value = today;
+
+                    return true;
+
+                } catch (error) {
+                    hideLoading();
+                    console.error('❌ Errore invio:', error.message);
+                    showAlert('Errore', 'Errore durante invio: ' + error.message, '❌');
+                    return false;
+                }
+            }
+
+            // === GESTIONE NUOVO INTERVENTO ===
+            function showNewInterventoModal() {
+                newMudInput.value = '';
+                selectInterventoType('mud'); // Default a MUD
+                newInterventoModal.classList.add('app-flex-visible');
+            }
+
+            function hideNewInterventoModal() {
+                newInterventoModal.classList.remove('app-flex-visible');
+            }
+
+            function createNewIntervento() {
+                let newMud = '';
+                
+                if (selectedInterventoType === 'mud') {
+                    const newCode = newMudInput.value.trim();
+                    if (!newCode) {
+                        showAlert('Errore', 'Inserisci un codice di 4 cifre per il MUD', '⚠️');
+                        return;
+                    }
+                    
+                    try {
+                        // Genera MUD dal codice numerico
+                        newMud = generateMudFromCode(newCode);
+                    } catch (error) {
+                        showAlert('Errore', error.message, '⚠️');
+                        return;
+                    }
+                } else {
+                    // Intervento ordinario - genera ID temporaneo
+                    newMud = 'ORD-' + Date.now().toString().slice(-6);
+                }
+                
+                // Reset form
+                interventoForm.reset();
+                
+                // Imposta nuovo MUD/ID
+                mudInput.value = newMud;
+                
+                // Aggiorna display MUD (la funzione gestisce automaticamente il tipo)
+                updateMudDisplay(newMud);
+                
+                // Imposta date correnti
+                const today = getCurrentDate();
+                dataInizioInput.value = today;
+                dataFineInput.value = today;
+                
+                currentDraft = null;
+                hideNewInterventoModal();
+                closeSidebar();
+            }
+
+            // === EVENT LISTENERS ===
+            
+            // Mostra utente corrente e configura logout
+            const currentUserData = userManager.getCurrentUser();
+            currentUsername = currentUserData.username || 'utente'; // ✅ CORREZIONE: Imposta currentUsername
+            currentUser.textContent = `Connesso: ${currentUserData.displayName || currentUserData.username || 'Utente'} (${currentUserData.role || 'utente'})`;
+            
+            // Logout button (ora nel menu laterale)
+            const logoutButton = document.getElementById('logout-button');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', () => {
+                    if (confirm('Sei sicuro di voler uscire?')) {
+                        userManager.logout();
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+
+            // === INIZIALIZZAZIONE DIRETTA APP ===
+            // Inizializza data corrente
+            const today = getCurrentDate();
+            dataInizioInput.value = today;
+            dataFineInput.value = today;
+            
+            // === LISTENER EVENTI MENU ===
+            console.log('🔗 Aggiunta listener eventi menu...');
+            
+            // Menu a tendina
+            console.log('🔧 Aggiunta listener menu interventi...');
+            console.log('🔍 interventiToggle trovato:', !!interventiToggle);
+            
+            if (interventiToggle) {
+                interventiToggle.addEventListener('click', function(e) {
+                    console.log('🖱️ CLICK MENU INTERVENTI RILEVATO!', e);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleInterventiMenu();
+                });
+                console.log('✅ Event listener aggiunto a interventi-toggle');
+                
+                // Test immediato
+                console.log('🧪 Test click programmatico...');
+                setTimeout(() => {
+                    console.log('🔬 Simulazione click per test...');
+                    interventiToggle.click();
+                }, 2000);
+            } else {
+                console.error('❌ ERRORE: Elemento interventi-toggle non trovato!');
+                console.log('🔍 Tutti gli elementi con ID interventi:', document.querySelectorAll('[id*="interventi"]'));
+            }
+            
+            // Bozze dropdown  
+            console.log('🔧 Aggiunta listener menu bozze...');
+            console.log('🔍 bozzeToggle trovato:', !!bozzeToggle);
+            
+            if (bozzeToggle) {
+                bozzeToggle.addEventListener('click', function(e) {
+                    console.log('🖱️ CLICK MENU BOZZE RILEVATO!', e);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleBozzeList();
+                });
+                console.log('✅ Event listener aggiunto a bozze-toggle');
+            } else {
+                console.error('❌ ERRORE: Elemento bozze-toggle non trovato!');
+                console.log('🔍 Tutti gli elementi con ID bozze:', document.querySelectorAll('[id*="bozze"]'));
+            }
+            
+            // Home button
+            const homeButton = document.getElementById('home-button');
+            if (homeButton) {
+                homeButton.addEventListener('click', function(e) {
+                    console.log('🏠 Click su Home rilevato!');
+                    e.preventDefault();
+                    showAppScreen();
+                });
+                console.log('✅ Home button inizializzato con listener');
+            } else {
+                console.error('❌ ERRORE: Elemento home-button non trovato!');
+            }
+            
+            // Nasconde display MUD all'avvio
+            updateMudDisplay('');
+            
+            // Carica bozze salvate
+            loadSavedDrafts();
+            
+            // Apre il menu Interventi di default
+            if (interventiSubmenu) {
+                interventiSubmenu.classList.remove('hidden');
+                console.log('✅ Menu Interventi aperto di default');
+            }
+            
+            // Inizializza sistema firme con delay per assicurare che il DOM sia completamente caricato
+            setTimeout(() => {
+                initializeSignatureSystem();
+            }, 100);
+            
+            // Apre il menu Interventi di default con animazione
+            if (interventiArrow) {
+                interventiArrow.classList.add('rotate-180');
+            }
+            
+            console.log('✨ Inizializzazione completata!');
+
+            // Canvas setup - RIMOSSO COMPLETAMENTE
+
+            // Form submission
+            interventoForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                submitFormData();
+            });
+
+            // Pulsanti
+            saveBozzaButton.addEventListener('click', saveDraft);
+
+            // Sidebar
+            openSidebarButton.addEventListener('click', openSidebar);
+            closeSidebarButton.addEventListener('click', closeSidebar);
+            sidebarOverlay.addEventListener('click', closeSidebar);
+
+            // Nuovo intervento
+            newInterventoButton.addEventListener('click', showNewInterventoModal);
+            newInterventoCancel.addEventListener('click', hideNewInterventoModal);
+            newInterventoConfirm.addEventListener('click', createNewIntervento);
+            
+            // Navigazione schermate
+            if (settingsButton) {
+                settingsButton.addEventListener('click', showSettingsScreen);
+            }
+            if (backToAppButton) {
+                backToAppButton.addEventListener('click', showAppScreen);
+            }
+            
+            // Home button listener aggiunto nella sezione precedente ✅
+            
+            // Listener eventi menu sono stati spostati sopra per evitare duplicazioni
+            
+            // Menu hamburger nelle impostazioni
+            if (openSidebarSettings) {
+                openSidebarSettings.addEventListener('click', openSidebar);
+            }
+            
+            // Selezione tipo intervento
+            tipoMudButton.addEventListener('click', () => selectInterventoType('mud'));
+            tipoOrdinarioButton.addEventListener('click', () => selectInterventoType('ordinario'));
+            
+            // Validazione input MUD - solo numeri
+            newMudInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '').substring(0, 4);
+            });
+
+            // Modal alerts
+            document.getElementById('alert-cancel').addEventListener('click', hideAlert);
+            document.getElementById('alert-confirm').addEventListener('click', hideAlert);
+
+            // Chiusura modal con Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    hideAlert();
+                    hideNewInterventoModal();
+                    closeSidebar();
+                }
+            });
+
+            // Funzioni globali per eliminazione bozze (chiamate da HTML dinamico)
+            window.deleteDraft = deleteDraft;
+
+            console.log('🚀 App SMIRT inizializzata con successo');
+            console.log('📝 Codici buono lavoro:', USER_CODE_MAPPING);
+
+        });
+        
+        // === PWA GESTIONE AVANZATA ===
+        // Gestione completa dell'installazione PWA per tutte le piattaforme
+        
+        let deferredPrompt = null;
+        let installPromptShown = false;
+        
+        // Rileva tipo di device e browser
+        function detectPlatform() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isIOS = /iphone|ipad|ipod/.test(userAgent);
+            const isAndroid = /android/.test(userAgent);
+            const isChrome = /chrome/.test(userAgent) && !/edge/.test(userAgent);
+            const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
+            const isFirefox = /firefox/.test(userAgent);
+            
+            return {
+                isIOS,
+                isAndroid, 
+                isChrome,
+                isSafari,
+                isFirefox,
+                isMobile: isIOS || isAndroid
+            };
+        }
+        
+        function isInStandaloneMode() {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.navigator.standalone === true;
+        }
+        
+        function showInstallPrompt() {
+            const platform = detectPlatform();
+            const installAppButton = document.getElementById('install-app-button');
+            const mobileInstallInstructions = document.getElementById('mobile-install-instructions');
+            
+            // Se è già in modalità standalone, nascondi tutto
+            if (isInStandaloneMode()) {
+                installAppButton.classList.add('hidden');
+                mobileInstallInstructions.classList.add('hidden');
+                return;
+            }
+            
+            // Su desktop Chrome/Edge o quando c'è il prompt nativo
+            if (deferredPrompt && !platform.isMobile) {
+                installAppButton.classList.remove('hidden');
+                mobileInstallInstructions.classList.add('hidden');
+            }
+            // Su mobile, mostra istruzioni specifiche
+            else if (platform.isMobile) {
+                installAppButton.classList.add('hidden');
+                mobileInstallInstructions.classList.remove('hidden');
+            }
+            // Altrimenti nascondi tutto
+            else {
+                installAppButton.classList.add('hidden');
+                mobileInstallInstructions.classList.add('hidden');
+            }
+        }
+        
+        // Gestisce il prompt automatico di installazione
+        window.addEventListener('beforeinstallprompt', (e) => {
+            try {
+                console.log('📱 PWA: Prompt installazione disponibile');
+                e.preventDefault();
+                deferredPrompt = e;
+                showInstallPrompt();
+            } catch (error) {
+                console.warn('📱 PWA: Errore gestione beforeinstallprompt:', error);
+            }
+        });
+        
+        // Click sul pulsante installa
+        const installAppButton = document.getElementById('install-app-button');
+        if (installAppButton) {
+            installAppButton.addEventListener('click', async () => {
+                try {
+                    if (deferredPrompt) {
+                        console.log('📱 PWA: Avvio installazione...');
+                        deferredPrompt.prompt();
+                        
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log('📱 PWA: Scelta utente:', outcome);
+                        
+                        if (outcome === 'accepted') {
+                            console.log('📱 PWA: Installazione accettata');
+                        } else {
+                            console.log('📱 PWA: Installazione rifiutata');
+                        }
+                        
+                        deferredPrompt = null;
+                        installAppButton.classList.add('hidden');
+                    }
+                } catch (error) {
+                    console.error('📱 PWA: Errore durante installazione:', error);
+                }
+            });
+        }
+        
+        // Rileva quando l'app è stata installata
+        window.addEventListener('appinstalled', () => {
+            try {
+                console.log('📱 PWA: App installata con successo');
+                deferredPrompt = null;
+                
+                const installAppButton = document.getElementById('install-app-button');
+                const mobileInstallInstructions = document.getElementById('mobile-install-instructions');
+                
+                if (installAppButton) installAppButton.classList.add('hidden');
+                if (mobileInstallInstructions) mobileInstallInstructions.classList.add('hidden');
+            } catch (error) {
+                console.warn('📱 PWA: Errore gestione appinstalled:', error);
+            }
+        });
+        
+        // Mostra prompt di installazione quando appropriato
+        function checkAndShowInstallPrompt() {
+            const platform = detectPlatform();
+            
+            // Non mostrare il prompt se è già installata o è stata mostrata di recente
+            if (isInStandaloneMode() || installPromptShown) {
+                console.log('📱 PWA: Già installata o prompt già mostrato');
+                return;
+            }
+            
+            console.log('📱 PWA: Controllo installazione...', {
+                platform: platform,
+                deferredPrompt: !!deferredPrompt,
+                isStandalone: isInStandaloneMode()
+            });
+            
+            // Su mobile, mostra sempre le istruzioni dopo un po'
+            if (platform.isMobile) {
+                setTimeout(() => {
+                    if (!installPromptShown && !isInStandaloneMode()) {
+                        console.log('📱 PWA: Mostro istruzioni mobile');
+                        showInstallPrompt();
+                        installPromptShown = true;
+                    }
+                }, 5000); // Dopo 5 secondi invece di 10
+            }
+            // Su desktop, mostra istruzioni anche senza deferredPrompt dopo un po'
+            else {
+                setTimeout(() => {
+                    if (!installPromptShown && !deferredPrompt && !isInStandaloneMode()) {
+                        console.log('📱 PWA: Mostro istruzioni desktop (fallback)');
+                        const mobileInstallInstructions = document.getElementById('mobile-install-instructions');
+                        if (mobileInstallInstructions) {
+                            mobileInstallInstructions.classList.remove('hidden');
+                            installPromptShown = true;
+                        }
+                    }
+                }, 8000); // Dopo 8 secondi
+            }
+        }
+        
+        // Chiama la funzione di controllo dopo l'inizializzazione
+        function initializePWA() {
+            setTimeout(() => {
+                showInstallPrompt();
+                checkAndShowInstallPrompt();
+            }, 2000);
+        }
+        
+        // === PWA SERVICE WORKER REGISTRATION ===
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('🔧 Service Worker registrato:', registration.scope);
+                        
+                        // Gestisce aggiornamenti del service worker
+                        registration.addEventListener('updatefound', () => {
+                            console.log('🔄 Service Worker: Aggiornamento trovato');
+                            const newWorker = registration.installing;
+                            
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('✅ Service Worker: Nuovo contenuto disponibile');
+                                    // Opzionalmente mostra notifica di aggiornamento
+                                }
+                            });
+                        });
+                        
+                        initializePWA();
+                    })
+                    .catch((error) => {
+                        console.error('❌ Service Worker registrazione fallita:', error);
+                    });
+            });
+        } else {
+            console.warn('⚠️ Service Worker non supportato');
+            initializePWA();
+        }
+
+        // ===============================================
+        // GESTIONE FIRME
+        // ===============================================
+
+        // Variabili firme spostate in cima per evitare duplicazioni
+
+        // Inizializza i canvas delle firme
+        function initializeSignatureCanvases() {
+            console.log('🔍 Inizializzazione canvas firme...');
+            
+            // Verifica se siamo nella pagina giusta
+            const appScreen = document.getElementById('app-screen');
+            const settingsScreen = document.getElementById('settings-screen');
+            console.log('📱 Schermate disponibili:', {
+                appScreen: !!appScreen,
+                settingsScreen: !!settingsScreen,
+                appVisible: appScreen && !appScreen.classList.contains('hidden'),
+                settingsVisible: settingsScreen && !settingsScreen.classList.contains('hidden')
+            });
+            
+            // Canvas firma del tecnico (nelle impostazioni)
+            techSignatureCanvas = document.getElementById('tech-signature-canvas');
+            if (techSignatureCanvas) {
+                console.log('✅ Canvas tecnico trovato:', techSignatureCanvas);
+                techSignatureCtx = techSignatureCanvas.getContext('2d');
+                setupCanvas(techSignatureCanvas, techSignatureCtx, 'tech');
+                loadTechSignature(); // Carica firma salvata
+            } else {
+                console.warn('⚠️ Canvas tecnico non trovato - potrebbero essere nelle impostazioni');
+            }
+
+            // Canvas firma del cliente (nel form principale)
+            clientSignatureCanvas = document.getElementById('client-signature-canvas');
+            if (clientSignatureCanvas) {
+                console.log('✅ Canvas cliente trovato:', clientSignatureCanvas);
+                clientSignatureCtx = clientSignatureCanvas.getContext('2d');
+                setupCanvas(clientSignatureCanvas, clientSignatureCtx, 'client');
+            } else {
+                console.warn('⚠️ Canvas cliente non trovato - potrebbe essere nascosto');
+            }
+            
+            // Verifica tutti i canvas esistenti nella pagina
+            const allCanvases = document.querySelectorAll('canvas');
+            console.log('🔍 Tutti i canvas trovati:', Array.from(allCanvases).map(c => ({
+                id: c.id,
+                visible: !c.closest('.hidden'),
+                width: c.width,
+                height: c.height
+            })));
+        }
+
+        // Configura un canvas per la firma
+        function setupCanvas(canvas, ctx, type) {
+            console.log(`🔧 Configurazione canvas ${type}...`);
+            
+            // Imposta colore di default
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Pulisci il canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Event listeners per mouse
+            canvas.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startDrawing(e, canvas, ctx, type);
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                e.preventDefault();
+                draw(e, canvas, ctx, type);
+            });
+            canvas.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                stopDrawing(type);
+            });
+            canvas.addEventListener('mouseleave', (e) => {
+                e.preventDefault();
+                stopDrawing(type);
+            });
+
+            // Event listeners per touch (gestione diretta)
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (touch.clientX - rect.left) * scaleX;
+                const y = (touch.clientY - rect.top) * scaleY;
+
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+
+                if (type === 'tech') {
+                    isTechSigning = true;
+                } else {
+                    isClientSigning = true;
+                    updateClientSignatureStatus(false);
+                }
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if ((type === 'tech' && !isTechSigning) || (type === 'client' && !isClientSigning)) {
+                    return;
+                }
+
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (touch.clientX - rect.left) * scaleX;
+                const y = (touch.clientY - rect.top) * scaleY;
+
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            });
+
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                stopDrawing(type);
+            });
+
+            console.log(`🖊️ Canvas ${type} configurato correttamente`);
+        }
+
+        // Inizia a disegnare
+        function startDrawing(e, canvas, ctx, type) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            if (type === 'tech') {
+                isTechSigning = true;
+            } else {
+                isClientSigning = true;
+                updateClientSignatureStatus(false); // Firma in corso
+            }
+        }
+
+        // Disegna
+        function draw(e, canvas, ctx, type) {
+            if ((type === 'tech' && !isTechSigning) || (type === 'client' && !isClientSigning)) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        // Ferma il disegno
+        function stopDrawing(type) {
+            if (type === 'tech') {
+                isTechSigning = false;
+            } else {
+                isClientSigning = false;
+                checkClientSignature();
+            }
+        }
+
+        // Cancella firma
+        function clearSignature(canvas, ctx, type) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (type === 'client') {
+                clientSignatureData = null;
+                clientSignatureConfirmed = false; // Reset dello stato di conferma
+                updateClientSignatureStatus(false);
+                updateClientSignatureButtons(false);
+                console.log('🗑️ Firma cliente cancellata e stato resettato');
+            }
+        }
+
+        // Verifica se il canvas ha contenuto
+        function isCanvasEmpty(canvas) {
+            const blank = document.createElement('canvas');
+            blank.width = canvas.width;
+            blank.height = canvas.height;
+            return canvas.toDataURL() === blank.toDataURL();
+        }
+
+        // Controlla lo stato della firma del cliente
+        function checkClientSignature() {
+            if (clientSignatureCanvas) {
+                const hasSignature = !isCanvasEmpty(clientSignatureCanvas);
+                updateClientSignatureButtons(hasSignature);
+                if (hasSignature) {
+                    updateClientSignatureStatus(null); // Firma presente ma non confermata
+                }
+            }
+        }
+
+        // Aggiorna lo stato visivo della firma del cliente
+        function updateClientSignatureStatus(confirmed) {
+            const indicator = document.getElementById('client-signature-indicator');
+            const text = document.getElementById('client-signature-text');
+            
+            if (!indicator || !text) return;
+
+            if (confirmed === true) {
+                indicator.className = 'w-3 h-3 rounded-full bg-green-500';
+                text.className = 'text-green-600 dark:text-green-400';
+                text.textContent = 'Firma del cliente confermata ✓';
+            } else if (confirmed === null) {
+                indicator.className = 'w-3 h-3 rounded-full bg-yellow-500';
+                text.className = 'text-yellow-600 dark:text-yellow-400';
+                text.textContent = 'Firma presente - clicca Conferma';
+            } else {
+                indicator.className = 'w-3 h-3 rounded-full bg-red-500';
+                text.className = 'text-red-600 dark:text-red-400';
+                text.textContent = 'Firma del cliente richiesta';
+            }
+        }
+
+        // Aggiorna i pulsanti della firma del cliente
+        function updateClientSignatureButtons(hasSignature) {
+            const confirmButton = document.getElementById('confirm-client-signature');
+            if (confirmButton) {
+                confirmButton.disabled = !hasSignature;
+            }
+        }
+
+        // Salva firma del tecnico nel localStorage
+        function saveTechSignature() {
+            if (!techSignatureCanvas || isCanvasEmpty(techSignatureCanvas)) {
+                showAlert('Errore', 'Nessuna firma da salvare. Disegna prima la tua firma.', 'error');
+                return;
+            }
+
+            try {
+                const signatureData = techSignatureCanvas.toDataURL('image/png');
+                localStorage.setItem('tech_signature', signatureData);
+                techSignatureData = signatureData;
+                showTechSignaturePreview(signatureData);
+                showAlert('Successo', 'Firma del tecnico salvata con successo!', 'success');
+            } catch (error) {
+                console.error('Errore nel salvare la firma:', error);
+                showAlert('Errore', 'Errore nel salvare la firma. Riprova.', 'error');
+            }
+        }
+
+        // Carica firma del tecnico dal localStorage
+        function loadTechSignature() {
+            try {
+                const savedSignature = localStorage.getItem('tech_signature');
+                if (savedSignature) {
+                    techSignatureData = savedSignature;
+                    showTechSignaturePreview(savedSignature);
+                }
+            } catch (error) {
+                console.error('Errore nel caricare la firma:', error);
+            }
+        }
+
+        // Mostra anteprima firma del tecnico
+        function showTechSignaturePreview(signatureData) {
+            const preview = document.getElementById('tech-signature-preview');
+            const image = document.getElementById('tech-signature-image');
+            
+            if (preview && image) {
+                image.src = signatureData;
+                preview.classList.remove('hidden');
+            }
+        }
+
+        // Elimina firma del tecnico salvata
+        function deleteTechSignature() {
+            try {
+                localStorage.removeItem('tech_signature');
+                techSignatureData = null;
+                
+                const preview = document.getElementById('tech-signature-preview');
+                if (preview) {
+                    preview.classList.add('hidden');
+                }
+                
+                showAlert('Successo', 'Firma del tecnico eliminata.', 'success');
+            } catch (error) {
+                console.error('Errore nell\'eliminazione della firma:', error);
+                showAlert('Errore', 'Errore nell\'eliminazione della firma.', 'error');
+            }
+        }
+
+        // Conferma firma del cliente
+        function confirmClientSignature() {
+            if (!clientSignatureCanvas || isCanvasEmpty(clientSignatureCanvas)) {
+                showAlert('Errore', 'Nessuna firma da confermare.', 'error');
+                return;
+            }
+
+            try {
+                clientSignatureData = clientSignatureCanvas.toDataURL('image/png');
+                clientSignatureConfirmed = true; // Marca la firma come confermata
+                updateClientSignatureStatus(true);
+                
+                console.log('✅ Firma cliente confermata:', {
+                    dataLength: clientSignatureData.length,
+                    confirmed: clientSignatureConfirmed,
+                    format: clientSignatureData.substring(0, 30) + '...'
+                });
+                
+                // La firma verrà inviata al server durante il submit del rapporto
+                showAlert('Successo', 'Firma del cliente confermata! Sarà inviata insieme al rapporto.', 'success');
+            } catch (error) {
+                console.error('Errore nel confermare la firma:', error);
+                showAlert('Errore', 'Errore nel confermare la firma.', 'error');
+            }
+        }
+
+        // Funzione rimossa - la firma cliente viene ora inviata durante il submit del rapporto
+
+        // Event listeners per i pulsanti delle firme
+        function initializeSignatureEventListeners() {
+            console.log('🎛️ Inizializzazione pulsanti firme...');
+            
+            // Pulsanti firma del tecnico
+            const clearTechBtn = document.getElementById('clear-tech-signature');
+            const saveTechBtn = document.getElementById('save-tech-signature');
+            const deleteTechBtn = document.getElementById('delete-tech-signature');
+
+            if (clearTechBtn && saveTechBtn && deleteTechBtn) {
+                clearTechBtn.addEventListener('click', () => {
+                    if (techSignatureCanvas && techSignatureCtx) {
+                        clearSignature(techSignatureCanvas, techSignatureCtx, 'tech');
+                    }
+                });
+                
+                saveTechBtn.addEventListener('click', saveTechSignature);
+                
+                deleteTechBtn.addEventListener('click', () => {
+                    if (confirm('Sei sicuro di voler eliminare la firma salvata?')) {
+                        deleteTechSignature();
+                    }
+                });
+                
+                console.log('✅ Pulsanti firma tecnico inizializzati');
+            } else {
+                console.warn('⚠️ Alcuni pulsanti firma tecnico non trovati');
+            }
+
+            // Pulsanti firma del cliente
+            const clearClientBtn = document.getElementById('clear-client-signature');
+            const confirmClientBtn = document.getElementById('confirm-client-signature');
+
+            if (clearClientBtn && confirmClientBtn) {
+                clearClientBtn.addEventListener('click', () => {
+                    if (clientSignatureCanvas && clientSignatureCtx) {
+                        clearSignature(clientSignatureCanvas, clientSignatureCtx, 'client');
+                    }
+                });
+                
+                confirmClientBtn.addEventListener('click', confirmClientSignature);
+                
+                console.log('✅ Pulsanti firma cliente inizializzati');
+            } else {
+                console.warn('⚠️ Alcuni pulsanti firma cliente non trovati');
+            }
+        }
+
+        // Inizializza tutto il sistema delle firme
+        function initializeSignatureSystem() {
+            try {
+                initializeSignatureCanvases();
+                initializeSignatureEventListeners();
+                console.log('🖊️ Sistema firme inizializzato correttamente');
+            } catch (error) {
+                console.error('❌ Errore inizializzazione sistema firme:', error);
+            }
+        }
+
+        // ===============================================
+        // FINE GESTIONE FIRME
+        // ===============================================
+
+        // ===============================================
+        // FUNZIONI DI DEBUG E TEST
+        // ===============================================
+        
+        // Funzione globale per testare il menu dalla console
+        window.testMenu = function() {
+            console.log('🧪 TEST MENU MANUALE');
+            console.log('Elementi trovati:', {
+                interventiToggle: !!interventiToggle,
+                interventiSubmenu: !!interventiSubmenu,
+                interventiArrow: !!interventiArrow
+            });
+            
+            if (interventiToggle) {
+                console.log('Simulando click...');
+                interventiToggle.click();
+            }
+        };
+
+        // Funzione globale per testare le firme dalla console
+        window.testSignatures = function() {
+            console.log('🧪 TEST FIRME MANUALE');
+            console.log('Canvas trovati:', {
+                techCanvas: !!techSignatureCanvas,
+                clientCanvas: !!clientSignatureCanvas
+            });
+            
+            if (clientSignatureCanvas) {
+                console.log('Testando disegno su canvas cliente...');
+                const ctx = clientSignatureCanvas.getContext('2d');
+                ctx.beginPath();
+                ctx.moveTo(10, 10);
+                ctx.lineTo(100, 100);
+                ctx.stroke();
+                console.log('Linea di test disegnata');
+            }
+        };
+
+        // Funzione per diagnostica completa
+        window.debugApp = function() {
+            console.log('🔍 DIAGNOSTICA COMPLETA APP');
+            console.log('='.repeat(50));
+            
+            // Test elementi DOM
+            const elementos = [
+                'interventi-toggle', 'interventi-submenu', 'interventi-arrow',
+                'bozze-toggle', 'bozze-list', 'bozze-arrow',
+                'tech-signature-canvas', 'client-signature-canvas'
+            ];
+            
+            elementos.forEach(id => {
+                const el = document.getElementById(id);
+                console.log(`${id}:`, {
+                    found: !!el,
+                    visible: el && !el.closest('.hidden'),
+                    tagName: el ? el.tagName : 'N/A'
+                });
+            });
+            
+            console.log('='.repeat(50));
+        };
+        
+        // Funzione per testare upload firma cliente
+        window.testClientSignature = async function() {
+            console.log('🖊️ TEST UPLOAD FIRMA CLIENTE');
+            console.log('='.repeat(50));
+            
+            // Verifica stato attuale
+            console.log('Stato firme:', {
+                clientSignatureData: !!clientSignatureData,
+                clientSignatureConfirmed: clientSignatureConfirmed,
+                dataLength: clientSignatureData ? clientSignatureData.length : 0
+            });
+            
+            if (!clientSignatureData) {
+                console.log('❌ Nessuna firma cliente presente. Creo una firma di test...');
+                
+                // Crea firma di test
+                if (clientSignatureCanvas && clientSignatureCtx) {
+                    clientSignatureCtx.fillStyle = '#000000';
+                    clientSignatureCtx.font = '20px Arial';
+                    clientSignatureCtx.fillText('Firma Test', 50, 50);
+                    clientSignatureCtx.strokeRect(20, 20, 200, 60);
+                    
+                    clientSignatureData = clientSignatureCanvas.toDataURL('image/png');
+                    clientSignatureConfirmed = true;
+                    console.log('✅ Firma di test creata:', clientSignatureData.length, 'caratteri');
+                }
+            }
+            
+            if (clientSignatureData) {
+                try {
+                    const testPayload = {
+                        identificativo: `TestUpload_${Date.now()}`,
+                        tipoIntervento: 'mud',
+                        mudValue: 'MUD-TEST-001',
+                        luogo: 'TestLocation',
+                        dataInizio: '2025-11-17',
+                        utente: 'TestUser',
+                        signatureBase64: clientSignatureData
+                    };
+                    
+                    console.log('📦 Invio payload test:', {
+                        ...testPayload,
+                        signatureBase64: 'BASE64_DATA_' + clientSignatureData.length + '_chars'
+                    });
+                    
+                    const response = await uploadClientSignatureToServer(testPayload);
+                    console.log('📨 Risposta ricevuta:', JSON.stringify(response, null, 2));
+                    
+                    if (response.status === 'success') {
+                        console.log('✅ Test riuscito!');
+                    } else {
+                        console.error('❌ Test fallito:', response.message);
+                    }
+                } catch (error) {
+                    console.error('❌ Errore durante test:', error);
+                }
+            } else {
+                console.error('❌ Impossibile creare firma di test');
+            }
+        };
+
+    </script>
+</body>
+</html>

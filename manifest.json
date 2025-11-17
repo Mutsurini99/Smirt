@@ -1,0 +1,57 @@
+{
+  "name": "SMIRT - Rapporti di Intervento",
+  "short_name": "SMIRT",
+  "description": "App professionale per la gestione dei rapporti di intervento tecnico con firme digitali",
+  "start_url": "./login.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
+  "orientation": "portrait-primary",
+  "lang": "it",
+  "dir": "ltr",
+  "scope": "./",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "icons": [
+    {
+      "src": "./SMIRT_Icon_Final.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./SMIRT_Icon_Final.svg", 
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./SMIRT_Icon_Final.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Nuovo Rapporto",
+      "short_name": "Nuovo", 
+      "description": "Accedi all'app per creare un nuovo rapporto di intervento",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "./SMIRT_Icon_Final.svg",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "display_override": ["standalone", "minimal-ui"],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
+}

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMIRT - Accesso App</title>
+    <link rel="icon" href="SMIRT_Icon_Final.svg" type="image/svg+xml">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 600;
+            font-size: 28px;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group label {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            color: #666;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label {
+            top: -10px;
+            left: 15px;
+            font-size: 12px;
+            color: #667eea;
+            background: white;
+            padding: 0 5px;
+            border-radius: 3px;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .company-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5e9;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: none;
+            color: #667eea;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">S</div>
+        <h1>Accesso App</h1>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <input type="text" id="username" placeholder=" " required>
+                <label for="username">Nome utente</label>
+            </div>
+
+            <div class="input-group">
+                <input type="password" id="password" placeholder=" " required>
+                <label for="password">Password</label>
+            </div>
+
+            <button type="submit" class="login-btn">Accedi</button>
+
+            <div class="error-message" id="errorMessage">
+                Nome utente o password non validi
+            </div>
+
+            <div class="loading" id="loadingMessage">
+                Accesso in corso...
+            </div>
+        </form>
+
+        <div class="company-info">
+            <strong>SMIRT S.r.l</strong><br>
+            Sistema Rapporti Intervento
+        </div>
+    </div>
+
+    <script src="./js/user-manager.js"></script>
+    <script>
+        // Inizializzazione
+        let loginAttempts = 0;
+        const maxAttempts = 3;
+
+        // Carica configurazione utenti all'avvio
+        document.addEventListener('DOMContentLoaded', async () => {
+            await userManager.loadUsers();
+
+            // Se l'utente è già autenticato, reindirizza all'app
+            if (userManager.isSessionValid()) {
+                window.location.href = 'index.html';
+                return;
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const loadingMessage = document.getElementById('loadingMessage');
+
+            // Nasconde eventuali messaggi di errore precedenti
+            errorMessage.style.display = 'none';
+            loadingMessage.style.display = 'block';
+
+            // Simula un breve caricamento per UX migliore
+            setTimeout(() => {
+                if (!userManager) {
+                    errorMessage.textContent = 'Errore sistema: ricarica la pagina';
+                    errorMessage.style.display = 'block';
+                    loadingMessage.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const authResult = userManager.authenticate(username, password);
+
+                    if (authResult && authResult.success) {
+                        loadingMessage.style.display = 'none';
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Errore durante l\'autenticazione:', error);
+                }
+
+                // Login fallito
+                loginAttempts++;
+                loadingMessage.style.display = 'none';
+
+                if (loginAttempts >= maxAttempts) {
+                    errorMessage.textContent = `Troppi tentativi falliti. Riprova più tardi.`;
+                    document.getElementById('loginForm').style.display = 'none';
+                    setTimeout(() => {
+                        document.getElementById('loginForm').style.display = 'block';
+                        loginAttempts = 0;
+                    }, 30000); // Blocca per 30 secondi
+                } else {
+                    errorMessage.textContent = `Credenziali non valide (${loginAttempts}/${maxAttempts})`;
+                }
+
+                errorMessage.style.display = 'block';
+
+                // Pulisce i campi
+                document.getElementById('password').value = '';
+                document.getElementById('username').focus();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
