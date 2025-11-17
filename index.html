@@ -568,11 +568,11 @@
                         console.log('🔗 JSONP URL lunghezza:', fullUrl.length);
                         console.log('🔗 JSONP URL preview:', fullUrl.substring(0, 150) + '...');
                         
-                        // Timeout per la richiesta
+                        // Timeout più lungo per GitHub Pages
                         const timeout = setTimeout(() => {
                             cleanup();
-                            reject(new Error('Timeout richiesta JSONP (30s)'));
-                        }, 30000);
+                            reject(new Error('Timeout richiesta JSONP (60s) - GitHub Pages'));
+                        }, 60000);  // Aumentato a 60 secondi
                         
                         // Funzione di cleanup
                         const cleanup = () => {
@@ -593,13 +593,25 @@
                             }
                         };
                         
-                        // Crea script tag per JSONP
+                        // Crea script tag per JSONP con retry per GitHub Pages
                         const script = document.createElement('script');
                         script.src = fullUrl;
                         script.onerror = () => {
-                            console.error('❌ Errore caricamento JSONP script');
+                            console.error('❌ Errore caricamento JSONP script - tentativo retry...');
                             cleanup();
-                            reject(new Error('Errore rete JSONP'));
+                            
+                            // Retry automatico dopo 2 secondi
+                            setTimeout(() => {
+                                console.log('🔄 Retry JSONP per GitHub Pages...');
+                                // Ricrea lo stesso tentativo
+                                const retryScript = document.createElement('script');
+                                retryScript.src = fullUrl;
+                                retryScript.onerror = () => {
+                                    console.error('❌ Retry fallito - problema di rete');
+                                    reject(new Error('Errore rete JSONP - GitHub Pages'));
+                                };
+                                document.head.appendChild(retryScript);
+                            }, 2000);
                         };
                         
                         console.log('⏳ Invio richiesta JSONP...');
@@ -633,11 +645,11 @@
                         const fullUrl = `${SCRIPT_URL}?${params.toString()}`;
                         console.log('🔗 JSONP Upload URL lunghezza:', fullUrl.length);
                         
-                        // Timeout per upload (più lungo per le immagini)
+                        // Timeout per upload firma (più lungo per GitHub Pages)
                         const timeout = setTimeout(() => {
                             cleanup();
-                            reject(new Error('Timeout upload firma JSONP (45s)'));
-                        }, 45000);
+                            reject(new Error('Timeout upload firma JSONP (90s) - GitHub Pages'));
+                        }, 90000);  // Aumentato a 90 secondi per upload
                         
                         // Funzione di cleanup
                         const cleanup = () => {
