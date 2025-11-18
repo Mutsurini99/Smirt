@@ -352,9 +352,7 @@
                 <button id="interventi-toggle" class="w-full flex items-center justify-between p-3 text-left font-medium text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
                     <div class="flex items-center space-x-2">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span>Interventi</span>
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 002-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clip-rule="evenodd"></path>
                     </div>
                     <svg id="interventi-arrow" class="w-4 h-4 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
@@ -615,9 +613,9 @@
                 console.log('🚀 === UPLOAD FIRMA CON FETCH/POST ===');
                 if (!data) throw new Error('Dati upload non forniti');
                 const signature = data.firmaTecicoTechnicianSignature || data.signatureBase64 || data.signature;
-                if (!signature) {
-                    console.error('❌ Nessuna firma trovata nei dati:', Object.keys(data));
-                    throw new Error('Firma non presente nei dati di upload');
+                if (!signature || typeof signature !== 'string' || !signature.startsWith('data:image')) {
+                    console.error('❌ Nessuna firma valida trovata nei dati:', Object.keys(data));
+                    throw new Error('Firma non presente o non valida nei dati di upload');
                 }
                 const uploadData = {
                     ...data,
@@ -641,7 +639,6 @@
                     throw error;
                 }
             }
-// ...legacy upload logic removed, now using fetch/POST only...
 
             // === ELEMENTI DOM ===
             const appScreen = document.getElementById('app-screen');
